@@ -15,4 +15,11 @@ export const fmtBig = (v: number | null | undefined) => {
   return v.toLocaleString("sv-SE");
 };
 
-export const tone = (v: number | null | undefined) => (!isNum(v) || v === 0 ? "" : v > 0 ? "pos" : "neg");
+/** Converts an amount with the row's exchange rate; null if not possible. */
+export const toBase = (v: number | null | undefined, fx: number | null | undefined) =>
+  isNum(v) && isNum(fx) ? v * fx : null;
+
+/** True when the original currency already is the base currency. */
+export const sameCurrency = (currency: string, base: string) => currency.toUpperCase() === base.toUpperCase();
+
+export const tone =(v: number | null | undefined) => (!isNum(v) || v === 0 ? "" : v > 0 ? "pos" : "neg");

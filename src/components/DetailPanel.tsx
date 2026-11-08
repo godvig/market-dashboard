@@ -1,13 +1,20 @@
 import { useEffect, useState } from "react";
 import type { Candle, HistoryRange, WatchlistRow } from "../../shared/types";
 import { api } from "../api";
-import { fmtBig, fmtNum, fmtPct, tone } from "../format";
+import { fmtBig, fmtNum, fmtPct, sameCurrency, toBase, tone } from "../format";
 import { PriceChart } from "./PriceChart";
 
 const RANGES: HistoryRange[] = ["6mo", "1y", "2y", "5y"];
 
-export function DetailPanel({ row, onClose }: { row: WatchlistRow; onClose: () => void }) {
-  const { quote: q, metrics: m } = row;
+export function DetailPanel({ row, baseCurrency, onClose }: { row: WatchlistRow; baseCurrency: string; onClose: () => void }) {
+  const { quote: q, metrics: m, fx } = row;
+  const foreign = !sameCurrency(q.currency, baseCurrency) && fx != null;
+  /** "12,34 USD (≈ 130,80 SEK)" – original first, base currency in brackets. */
+  const both = (v: number | undefined, big = false) => {
+    const f = big ? fmtBig : fmtNum;
+    const base = toBase(v, fx);
+    return foreign && base != null ? `${f(v)} ${q.currency} (≈ ${f(base)} ${baseCurrency})` : `${f(v)} ${q.currency}`;
+  };
   const [range, setRange] = useState<HistoryRange>("1y");
   const [candles, setCandles] = useState<Candle[] | null>(null);
   const [error, setError] = useState<string>();
@@ -27,7 +34,11 @@ export function DetailPanel({ row, onClose }: { row: WatchlistRow; onClose: () =
 
   const stats: [string, string, string?][] = [
     ["Day", fmtPct(q.changePct, 2), tone(q.changePct)],
-    ["52w range", `${fmtNum(q.fiftyTwoWeekLow)} – ${fmtNum(q.fiftyTwoWeekHigh)}`],
+    [
+      "52w range",
+      `${fmtNum(q.fiftyTwoWeekLow)} – ${fmtNum(q.fiftyTwoWeekHigh)} ${q.currency}` +
+        (foreign ? ` (≈ ${fmtNum(toBase(q.fiftyTwoWeekLow, fx))} – ${fmtNum(toBase(q.fiftyTwoWeekHigh, fx))} ${baseCurrency})` : ""),
+    ],
     ["SMA50 / SMA200", `${fmtNum(m.sma50)} / ${fmtNum(m.sma200)}`],
     ["Volatility (1y)", fmtPct(m.volatility).replace("+", "")],
     ["Max drawdown (1y)", fmtPct(m.maxDrawdown), tone(m.maxDrawdown)],
@@ -35,8 +46,9 @@ export function DetailPanel({ row, onClose }: { row: WatchlistRow; onClose: () =
     ["P/E", fmtNum(q.pe, 1)],
     ["Dividend yield", fmtPct(q.dividendYield).replace("+", "")],
     ["Payout ratio", fmtPct(q.payoutRatio, 0).replace("+", ""), q.payoutRatio != null && q.payoutRatio > 100 ? "neg" : ""],
-    ["Dividend / share", `${fmtNum(q.dividendPerShare)} ${q.currency}`],
-    ["Market cap", `${fmtBig(q.marketCap)} ${q.currency}`],
+    ["Dividend / share", both(q.dividendPerShare)],
+    ["Market cap", both(q.marketCap, true)],
+    ...(foreign ? ([[`${q.currency}/${baseCurrency}`, fmtNum(fx, 4)]] as [string, string][]) : []),
   ];
 
   return (
@@ -53,6 +65,11 @@ export function DetailPanel({ row, onClose }: { row: WatchlistRow; onClose: () =
               {fmtNum(q.change)} ({fmtPct(q.changePct, 2)})
             </span>
           </div>
+          {foreign && (
+            <div className="muted">
+              ≈ {fmtNum(toBase(q.price, fx))} {baseCurrency}
+            </div>
+          )}
         </div>
         <div className="ranges">
           {RANGES.map((r) => (

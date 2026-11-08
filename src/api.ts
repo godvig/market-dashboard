@@ -1,4 +1,4 @@
-import type { Candle, HistoryRange, SearchResult, Watchlist, WatchlistRow } from "../shared/types";
+import type { Candle, Health, HistoryRange, SearchResult, Watchlist, WatchlistRow } from "../shared/types";
 
 async function get<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init);
@@ -8,7 +8,7 @@ async function get<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  health: () => get<{ provider: string; fallback: string }>("/api/health"),
+  health: () => get<Health>("/api/health"),
   watchlist: (symbols: string[]) =>
     get<WatchlistRow[]>(`/api/watchlist?symbols=${encodeURIComponent(symbols.join(","))}`),
   history: (symbol: string, range: HistoryRange) =>

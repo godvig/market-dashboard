@@ -4,6 +4,7 @@ import path from "node:path";
 import { computeMetrics, emptyMetrics } from "../shared/analysis";
 import type { Fundamentals, HistoryRange, Quote, WatchlistRow } from "../shared/types";
 import { cached, mapLimit } from "./cache";
+import { createFx } from "./fx";
 import { createProviders } from "./providers";
 import { parseWatchlists, readWatchlists, writeWatchlists } from "./store";
 
@@ -12,6 +13,7 @@ const PORT = Number(process.env.PORT ?? 8787);
 const QUOTE_TTL = Number(process.env.QUOTE_TTL_SECONDS ?? 60) * 1000;
 const HISTORY_TTL = Number(process.env.HISTORY_TTL_HOURS ?? 12) * 3_600_000;
 const RANGES: HistoryRange[] = ["6mo", "1y", "2y", "5y"];
+const fx = createFx(process.env.BASE_CURRENCY ?? "SEK", primary.name === "mock");
 
 const parseSymbols = (raw: unknown) =>
   String(raw ?? "")
@@ -66,7 +68,7 @@ app.put("/api/watchlists", async (req, res) => {
 });
 
 app.get("/api/health", (_req, res) => {
-  res.json({ provider: primary.name, fallback: fallback.name });
+  res.json({ provider: primary.name, fallback: fallback.name, baseCurrency: fx.base });
 });
 
 // Quote + computed metrics for each symbol; one failing symbol doesn't break the list.
@@ -79,10 +81,14 @@ app.get("/api/watchlist", async (req, res) => {
         history(symbol, "1y").catch(() => []),
         fundamentals(symbol),
       ]);
-      return { quote: withFundamentals(q, f), metrics: h.length ? computeMetrics(h) : emptyMetrics };
+      return {
+        quote: withFundamentals(q, f),
+        metrics: h.length ? computeMetrics(h) : emptyMetrics,
+        fx: await fx.rate(q.currency),
+      };
     } catch (err) {
       const blank: Quote = { symbol, name: symbol, currency: "", price: NaN, change: NaN, changePct: NaN };
-      return { quote: blank, metrics: emptyMetrics, error: (err as Error).message };
+      return { quote: blank, metrics: emptyMetrics, fx: null, error: (err as Error).message };
     }
   });
   res.json(rows);

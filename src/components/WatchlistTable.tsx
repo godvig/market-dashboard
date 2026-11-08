@@ -9,7 +9,7 @@ import {
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 import type { WatchlistRow } from "../../shared/types";
-import { fmtBig, fmtNum, fmtPct, tone } from "../format";
+import { fmtBig, fmtNum, fmtPct, sameCurrency, toBase, tone } from "../format";
 
 const col = createColumnHelper<WatchlistRow>();
 
@@ -31,12 +31,13 @@ const pct = (header: string, get: (r: WatchlistRow) => number | null | undefined
 
 interface Props {
   rows: WatchlistRow[];
+  baseCurrency: string;
   selected?: string;
   onSelect: (symbol: string) => void;
   onRemove: (symbol: string) => void;
 }
 
-export function WatchlistTable({ rows, selected, onSelect, onRemove }: Props) {
+export function WatchlistTable({ rows, baseCurrency, selected, onSelect, onRemove }: Props) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filter, setFilter] = useState("");
 
@@ -59,11 +60,23 @@ export function WatchlistTable({ rows, selected, onSelect, onRemove }: Props) {
       col.accessor((r) => r.quote.price, {
         id: "Price",
         header: "Price",
-        cell: (c) => (
-          <>
-            {fmtNum(c.getValue())} <small>{c.row.original.quote.currency}</small>
-          </>
-        ),
+        meta: { title: `Price in the listing currency, with the ${baseCurrency} value below` },
+        cell: (c) => {
+          const { quote, fx } = c.row.original;
+          const base = toBase(quote.price, fx);
+          return (
+            <div className="dual">
+              <span>
+                {fmtNum(c.getValue())} <small>{quote.currency}</small>
+              </span>
+              {!sameCurrency(quote.currency, baseCurrency) && base != null && (
+                <small>
+                  ≈ {fmtNum(base)} {baseCurrency}
+                </small>
+              )}
+            </div>
+          );
+        },
       }),
       pct("Day", (r) => r.quote.changePct, "Change today"),
       pct("1M", (r) => r.metrics.ret1m, "Return, last 21 trading days"),
@@ -113,12 +126,25 @@ export function WatchlistTable({ rows, selected, onSelect, onRemove }: Props) {
           return <span className={v != null && v > 100 ? "neg" : ""}>{fmtPct(v, 0).replace("+", "")}</span>;
         },
       }),
-      col.accessor((r) => r.quote.marketCap ?? null, {
+      col.accessor((r) => toBase(r.quote.marketCap, r.fx), {
         id: "Mkt cap",
-        header: "Mkt cap",
-        meta: { title: "In the listing currency – not comparable across currencies" },
+        header: `Mkt cap (${baseCurrency})`,
+        meta: { title: `Market cap converted to ${baseCurrency} so it can be compared and sorted; original currency below` },
         sortUndefined: "last",
-        cell: (c) => fmtBig(c.getValue()),
+        cell: (c) => {
+          const { quote } = c.row.original;
+          const base = c.getValue();
+          return (
+            <div className="dual">
+              <span>{base != null ? fmtBig(base) : fmtBig(quote.marketCap)}</span>
+              {!sameCurrency(quote.currency, baseCurrency) && quote.marketCap != null && (
+                <small>
+                  {fmtBig(quote.marketCap)} {quote.currency}
+                </small>
+              )}
+            </div>
+          );
+        },
       }),
       col.display({
         id: "remove",
@@ -137,7 +163,7 @@ export function WatchlistTable({ rows, selected, onSelect, onRemove }: Props) {
         ),
       }),
     ],
-    [onRemove],
+    [onRemove, baseCurrency],
   );
 
   const table = useReactTable({

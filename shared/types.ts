@@ -69,5 +69,16 @@ export interface Metrics {
 export interface WatchlistRow {
   quote: Quote;
   metrics: Metrics;
+  /**
+   * Multiply an amount in the quote's currency by this to get the base
+   * currency (e.g. SEK). Null when no exchange rate was found.
+   */
+  fx: number | null;
   error?: string;
+}
+
+export interface Health {
+  provider: string;
+  fallback: string;
+  baseCurrency: string;
 }

@@ -17,10 +17,17 @@ export function App() {
   const [error, setError] = useState<string>();
   const [selected, setSelected] = useState<string>();
   const [provider, setProvider] = useState<string>();
+  const [baseCurrency, setBaseCurrency] = useState("SEK");
   const [updated, setUpdated] = useState<Date>();
 
   useEffect(() => {
-    api.health().then((h) => setProvider(h.provider)).catch(() => setProvider("offline"));
+    api
+      .health()
+      .then((h) => {
+        setProvider(h.provider);
+        setBaseCurrency(h.baseCurrency ?? "SEK");
+      })
+      .catch(() => setProvider("offline"));
   }, []);
 
   const refresh = useCallback(() => {
@@ -83,12 +90,12 @@ export function App() {
 
       {wl.saveError && <p className="neg">Could not save lists to the server: {wl.saveError} (kept in this browser)</p>}
       {error && <p className="neg">Could not load data: {error}</p>}
-      {selectedRow && <DetailPanel row={selectedRow} onClose={() => setSelected(undefined)} />}
+      {selectedRow && <DetailPanel row={selectedRow} baseCurrency={baseCurrency} onClose={() => setSelected(undefined)} />}
 
       {wl.ready && !symbols.length ? (
         <div className="card empty">This list is empty. Add tickers with the search box above.</div>
       ) : (
-        <WatchlistTable rows={rows} selected={selected} onSelect={setSelected} onRemove={handleRemove} />
+        <WatchlistTable rows={rows} baseCurrency={baseCurrency} selected={selected} onSelect={setSelected} onRemove={handleRemove} />
       )}
 
       <footer className="muted">

@@ -102,3 +102,5 @@ footer { font-size: 12px; }
 button.danger { background: var(--neg); border-color: var(--neg); color: #fff; }
 button:disabled { opacity: .5; cursor: default; }
 .empty { color: var(--muted); text-align: center; padding: 40px; }
+.dual { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.25; }
+.dual small { font-size: 11px; }

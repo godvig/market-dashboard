@@ -8,7 +8,8 @@
     "build": "vite build",
     "start": "tsx server/index.ts",
     "typecheck": "tsc",
-    "test": "vitest run"
+    "test": "vitest run",
+    "check": "tsx server/check.ts"
   },
   "license": "MIT",
   "dependencies": {
