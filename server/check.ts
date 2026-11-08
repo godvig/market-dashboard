@@ -3,7 +3,7 @@
 //        npm run check -- SAND.ST KO
 import "dotenv/config";
 import { computeMetrics } from "../shared/analysis";
-import type { Fundamentals } from "../shared/types";
+import { FUNDAMENTAL_KEYS, type Fundamentals } from "../shared/types";
 import { createFx } from "./fx";
 import { createProviders } from "./providers";
 
@@ -27,12 +27,12 @@ for (const symbol of symbols) {
     ok(`quote: ${q.name} · ${n(q.price)} ${q.currency}` + (rate != null && rate !== 1 ? ` ≈ ${n(q.price * rate)} ${fx.base} (rate ${n(rate, 4)})` : ""));
     if (rate == null) fail("exchange rate", `none found for ${q.currency}`);
 
-    const fp = primary.getFundamentals ? primary : fallback;
-    const f: Fundamentals = fp.getFundamentals ? await fp.getFundamentals(symbol).catch((e): Fundamentals => (fail("fundamentals", e), {})) : {};
-    ok(
-      `dividend yield ${n(f.dividendYield ?? q.dividendYield)} % · payout ratio ${n(f.payoutRatio ?? q.payoutRatio, 0)} % · ` +
-        `dividend/share ${n(f.dividendPerShare ?? q.dividendPerShare)} · P/E ${n(f.pe ?? q.pe, 1)}`,
-    );
+    for (const p of [primary, ...(fallback !== primary ? [fallback] : [])]) {
+      if (!p.getFundamentals) continue;
+      const f: Fundamentals = await p.getFundamentals(symbol).catch((e): Fundamentals => (fail(`${p.name} key figures`, e), {}));
+      const parts = FUNDAMENTAL_KEYS.filter((k) => f[k] != null).map((k) => `${k} ${n(f[k], k === "marketCap" ? 0 : 2)}`);
+      if (parts.length) ok(`${p.name} key figures: ${parts.join(" · ")}`);
+    }
 
     const hp = primary.getHistory ? primary : fallback;
     const h = await hp.getHistory!(symbol, "1y");

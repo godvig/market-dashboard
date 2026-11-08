@@ -2,11 +2,12 @@ import "dotenv/config";
 import express from "express";
 import path from "node:path";
 import { computeMetrics, emptyMetrics } from "../shared/analysis";
-import type { Fundamentals, HistoryRange, Quote, WatchlistRow } from "../shared/types";
+import { FUNDAMENTAL_KEYS, type Fundamentals, type HistoryRange, type Quote, type WatchlistRow } from "../shared/types";
 import { cached, mapLimit } from "./cache";
 import { createFx } from "./fx";
 import { createProviders } from "./providers";
-import { parseWatchlists, readWatchlists, writeWatchlists } from "./store";
+import type { MarketProvider } from "./providers/types";
+import { parseStore, readStore, writeStore } from "./store";
 
 const { primary, fallback } = createProviders(process.env);
 const PORT = Number(process.env.PORT ?? 8787);
@@ -14,81 +15,108 @@ const QUOTE_TTL = Number(process.env.QUOTE_TTL_SECONDS ?? 60) * 1000;
 const HISTORY_TTL = Number(process.env.HISTORY_TTL_HOURS ?? 12) * 3_600_000;
 const RANGES: HistoryRange[] = ["6mo", "1y", "2y", "5y"];
 const fx = createFx(process.env.BASE_CURRENCY ?? "SEK", primary.name === "mock");
+const hasFallback = fallback !== primary;
 
 const parseSymbols = (raw: unknown) =>
   String(raw ?? "")
     .split(",")
     .map((s) => s.trim().toUpperCase())
     .filter(Boolean)
-    .slice(0, 50);
+    .slice(0, 100);
+
+/**
+ * Tries the primary provider, then the fallback (e.g. Yahoo for an ETF
+ * that Börsdata doesn't carry). Each provider's answer is cached separately.
+ */
+async function withFallback<T>(
+  key: string,
+  ttl: number,
+  task: (p: MarketProvider) => (() => Promise<T>) | undefined,
+): Promise<T> {
+  const providers = hasFallback ? [primary, fallback] : [primary];
+  let lastErr: unknown = new Error("No provider supports this");
+  for (const p of providers) {
+    const load = task(p); // a loader, so nothing is fetched when the cache is fresh
+    if (!load) continue;
+    try {
+      return await cached(`${key}:${p.name}`, ttl, load);
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr;
+}
 
 const history = (symbol: string, range: HistoryRange) =>
-  cached(`history:${primary.name}:${symbol}:${range}`, HISTORY_TTL, () =>
-    (primary.getHistory ?? fallback.getHistory!).call(primary.getHistory ? primary : fallback, symbol, range),
+  withFallback(`history:${symbol}:${range}`, HISTORY_TTL, (p) =>
+    p.getHistory ? () => p.getHistory!(symbol, range) : undefined,
   );
 
 const quote = (symbol: string) =>
-  cached(`quote:${primary.name}:${symbol}`, QUOTE_TTL, async () => {
-    const [q] = await primary.getQuotes([symbol]);
-    if (!q) throw new Error(`No quote for ${symbol}`);
-    return q;
-  });
+  withFallback(`quote:${symbol}`, QUOTE_TTL, (p) => () =>
+    p.getQuotes([symbol]).then(([q]) => {
+      if (!q || !Number.isFinite(q.price)) throw new Error(`No quote for ${symbol}`);
+      return { ...q, source: p.name };
+    }),
+  );
 
-// Dividend data etc. changes slowly, so it is cached as long as history.
-const fundamentals = (symbol: string): Promise<Fundamentals> => {
-  const p = primary.getFundamentals ? primary : fallback.getFundamentals ? fallback : null;
-  if (!p) return Promise.resolve({});
-  return cached(`fundamentals:${p.name}:${symbol}`, HISTORY_TTL, () => p.getFundamentals!(symbol)).catch(() => ({}));
-};
+const defined = (f: Fundamentals): Fundamentals =>
+  Object.fromEntries(Object.entries(f).filter(([, v]) => typeof v === "number" && Number.isFinite(v)));
 
-/** Keeps the quote's own values and fills the gaps from fundamentals. */
-function withFundamentals(q: Quote, f: Fundamentals): Quote {
-  const out = { ...q };
-  for (const [k, v] of Object.entries(f) as [keyof Fundamentals, number | undefined][]) {
-    if (v != null && Number.isFinite(v) && (out[k] == null || !Number.isFinite(out[k]))) out[k] = v;
+/**
+ * Key figures: primary provider first, gaps filled from the fallback and
+ * finally from the quote itself. Cached as long as price history.
+ */
+async function fundamentals(symbol: string, q: Quote): Promise<Fundamentals> {
+  const get = (p: MarketProvider) =>
+    p.getFundamentals
+      ? cached(`fundamentals:${symbol}:${p.name}`, HISTORY_TTL, () => p.getFundamentals!(symbol)).catch(() => ({}))
+      : Promise.resolve({});
+  const [main, extra] = await Promise.all([get(primary), hasFallback ? get(fallback) : Promise.resolve({})]);
+  const fromQuote: Fundamentals = {};
+  for (const k of FUNDAMENTAL_KEYS) {
+    const v = (q as unknown as Record<string, unknown>)[k];
+    if (typeof v === "number") fromQuote[k] = v;
   }
-  return out;
+  return { ...defined(fromQuote), ...defined(extra), ...defined(main) };
 }
 
 const app = express();
-app.use(express.json({ limit: "200kb" }));
-
-app.get("/api/watchlists", async (_req, res) => {
-  res.json(await readWatchlists());
-});
-
-app.put("/api/watchlists", async (req, res) => {
-  try {
-    const lists = parseWatchlists(req.body);
-    await writeWatchlists(lists);
-    res.json(lists);
-  } catch (err) {
-    res.status(400).json({ error: (err as Error).message });
-  }
-});
+app.use(express.json({ limit: "500kb" }));
 
 app.get("/api/health", (_req, res) => {
   res.json({ provider: primary.name, fallback: fallback.name, baseCurrency: fx.base });
 });
 
-// Quote + computed metrics for each symbol; one failing symbol doesn't break the list.
+app.get("/api/store", async (_req, res) => {
+  res.json(await readStore());
+});
+
+app.put("/api/store", async (req, res) => {
+  try {
+    const store = parseStore(req.body);
+    await writeStore(store);
+    res.json(store);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+// Quote + computed metrics + key figures for each symbol; one failing symbol doesn't break the list.
 app.get("/api/watchlist", async (req, res) => {
   const symbols = parseSymbols(req.query.symbols);
   const rows = await mapLimit(symbols, 4, async (symbol): Promise<WatchlistRow> => {
     try {
-      const [q, h, f] = await Promise.all([
-        quote(symbol),
+      const q = await quote(symbol);
+      const [h, f, rate] = await Promise.all([
         history(symbol, "1y").catch(() => []),
-        fundamentals(symbol),
+        fundamentals(symbol, q),
+        fx.rate(q.currency),
       ]);
-      return {
-        quote: withFundamentals(q, f),
-        metrics: h.length ? computeMetrics(h) : emptyMetrics,
-        fx: await fx.rate(q.currency),
-      };
+      return { quote: q, metrics: h.length ? computeMetrics(h) : emptyMetrics, fx: rate, fundamentals: f };
     } catch (err) {
       const blank: Quote = { symbol, name: symbol, currency: "", price: NaN, change: NaN, changePct: NaN };
-      return { quote: blank, metrics: emptyMetrics, fx: null, error: (err as Error).message };
+      return { quote: blank, metrics: emptyMetrics, fx: null, fundamentals: {}, error: (err as Error).message };
     }
   });
   res.json(rows);
@@ -107,8 +135,14 @@ app.get("/api/search", async (req, res) => {
   const q = String(req.query.q ?? "").trim();
   if (q.length < 1) return void res.json([]);
   try {
-    const p = primary.search ? primary : fallback;
-    res.json(await cached(`search:${p.name}:${q.toLowerCase()}`, 86_400_000, () => p.search!(q)));
+    // Merge results from both providers, primary first, without duplicates.
+    const lists = await Promise.all(
+      [primary, ...(hasFallback ? [fallback] : [])]
+        .filter((p) => p.search)
+        .map((p) => cached(`search:${p.name}:${q.toLowerCase()}`, 86_400_000, () => p.search!(q)).catch(() => [])),
+    );
+    const seen = new Set<string>();
+    res.json(lists.flat().filter((r) => !seen.has(r.symbol) && seen.add(r.symbol)).slice(0, 10));
   } catch (err) {
     res.status(502).json({ error: (err as Error).message });
   }

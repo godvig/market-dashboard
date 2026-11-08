@@ -17,20 +17,59 @@ export interface Quote {
   fiftyTwoWeekHigh?: number;
   fiftyTwoWeekLow?: number;
   sector?: string;
+  /** Which provider delivered the quote (differs from the primary when it fell back). */
+  source?: string;
 }
 
-/** Slow-changing data, fetched separately and cached for hours. */
+/**
+ * Slow-changing key figures, fetched separately and cached for hours.
+ * Percent values are in percent (12.5 = 12.5 %). Amounts are in the
+ * listing currency.
+ */
 export interface Fundamentals {
-  dividendYield?: number; // percent
-  payoutRatio?: number; // percent
+  dividendYield?: number;
+  payoutRatio?: number;
   dividendPerShare?: number;
   pe?: number;
+  forwardPe?: number;
+  ps?: number;
+  pb?: number;
+  evEbit?: number;
+  evEbitda?: number;
+  roe?: number;
+  profitMargin?: number;
+  revenueGrowth?: number;
+  netDebtEbitda?: number;
+  beta?: number;
+  marketCap?: number;
 }
+
+export const FUNDAMENTAL_KEYS: (keyof Fundamentals)[] = [
+  "dividendYield", "payoutRatio", "dividendPerShare", "pe", "forwardPe", "ps", "pb", "evEbit",
+  "evEbitda", "roe", "profitMargin", "revenueGrowth", "netDebtEbitda", "beta", "marketCap",
+];
 
 export interface Watchlist {
   id: string;
   name: string;
   symbols: string[];
+  /** Category in the sidebar; undefined = uncategorised. */
+  groupId?: string;
+}
+
+export interface ListGroup {
+  id: string;
+  name: string;
+  collapsed?: boolean;
+}
+
+/** Everything the user saves: categories, lists (in sidebar order) and table columns. */
+export interface UserStore {
+  version: 2;
+  groups: ListGroup[];
+  lists: Watchlist[];
+  /** Visible column ids, in order. Undefined = defaults. */
+  columns?: string[];
 }
 
 export interface Candle {
@@ -74,6 +113,8 @@ export interface WatchlistRow {
    * currency (e.g. SEK). Null when no exchange rate was found.
    */
   fx: number | null;
+  /** Key figures merged from the providers (quote values fill the gaps). */
+  fundamentals: Fundamentals;
   error?: string;
 }
 

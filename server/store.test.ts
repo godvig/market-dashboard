@@ -1,15 +1,34 @@
 import { describe, expect, it } from "vitest";
-import { parseWatchlists } from "./store";
+import { parseStore } from "./store";
 
-describe("parseWatchlists", () => {
+describe("parseStore", () => {
   it("normalises symbols and trims names", () => {
-    const [l] = parseWatchlists([{ id: "a", name: "  Utdelare ", symbols: ["volv-b.st", "VOLV-B.ST", " aapl ", 3, ""] }]);
-    expect(l).toEqual({ id: "a", name: "Utdelare", symbols: ["VOLV-B.ST", "AAPL"] });
+    const s = parseStore({
+      version: 2,
+      groups: [{ id: "g1", name: " Utdelning " }],
+      lists: [{ id: "a", name: "  Utdelare ", symbols: ["volv-b.st", "VOLV-B.ST", " aapl ", 3, ""], groupId: "g1" }],
+    });
+    expect(s.groups).toEqual([{ id: "g1", name: "Utdelning" }]);
+    expect(s.lists[0]).toEqual({ id: "a", name: "Utdelare", symbols: ["VOLV-B.ST", "AAPL"], groupId: "g1" });
+  });
+
+  it("migrates the old array format", () => {
+    const s = parseStore([{ id: "a", name: "My watchlist", symbols: ["AAPL"] }]);
+    expect(s).toEqual({ version: 2, groups: [], lists: [{ id: "a", name: "My watchlist", symbols: ["AAPL"] }] });
+  });
+
+  it("drops references to categories that don't exist", () => {
+    const s = parseStore({ groups: [], lists: [{ id: "a", name: "x", symbols: [], groupId: "gone" }] });
+    expect(s.lists[0].groupId).toBeUndefined();
+  });
+
+  it("keeps column choices", () => {
+    expect(parseStore({ lists: [{ id: "a", name: "x", symbols: [] }], columns: ["price", "pe", 7] }).columns).toEqual(["price", "pe"]);
   });
 
   it("rejects bad input", () => {
-    expect(() => parseWatchlists([])).toThrow();
-    expect(() => parseWatchlists([{ id: "a", name: "", symbols: [] }])).toThrow();
-    expect(() => parseWatchlists("nope")).toThrow();
+    expect(() => parseStore({ lists: [] })).toThrow();
+    expect(() => parseStore({ lists: [{ id: "a", name: "", symbols: [] }] })).toThrow();
+    expect(() => parseStore("nope")).toThrow();
   });
 });

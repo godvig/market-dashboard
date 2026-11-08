@@ -61,6 +61,11 @@ export function fmpProvider(apiKey: string): MarketProvider {
         payoutRatio: toPct(r.dividendPayoutRatioTTM ?? r.payoutRatioTTM),
         dividendPerShare: r.dividendPerShareTTM,
         pe: r.priceToEarningsRatioTTM ?? r.peRatioTTM,
+        ps: r.priceToSalesRatioTTM,
+        pb: r.priceToBookRatioTTM,
+        evEbitda: r.enterpriseValueMultipleTTM,
+        roe: toPct(r.returnOnEquityTTM),
+        profitMargin: toPct(r.netProfitMarginTTM),
       };
     },
 

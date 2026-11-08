@@ -1,6 +1,6 @@
 // Deterministic fake data for offline development, demos and tests.
 // Every symbol gets its own reproducible random walk.
-import type { Candle, HistoryRange, Quote, SearchResult } from "../../shared/types";
+import type { Candle, Fundamentals, HistoryRange, Quote, SearchResult } from "../../shared/types";
 import { rangeToDays, type MarketProvider } from "./types";
 
 const NAMES: Record<string, [string, string]> = {
@@ -84,6 +84,23 @@ export const mockProvider: MarketProvider = {
   async getHistory(symbol: string, range: HistoryRange) {
     const cutoff = new Date(Date.now() - rangeToDays[range] * 86_400_000).toISOString().slice(0, 10);
     return walk(symbol).filter((c) => c.time >= cutoff);
+  },
+
+  async getFundamentals(symbol: string): Promise<Fundamentals> {
+    const r = seeded(symbol + "keyfigures");
+    const pick = (lo: number, hi: number, d = 1) => Number((lo + r() * (hi - lo)).toFixed(d));
+    return {
+      forwardPe: pick(6, 35),
+      ps: pick(0.5, 12),
+      pb: pick(0.8, 15),
+      evEbit: pick(6, 40),
+      evEbitda: pick(4, 25),
+      roe: pick(-5, 45),
+      profitMargin: pick(-10, 35),
+      revenueGrowth: pick(-15, 40),
+      netDebtEbitda: pick(-1, 4, 2),
+      beta: pick(0.4, 1.9, 2),
+    };
   },
 
   async search(query): Promise<SearchResult[]> {

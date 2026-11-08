@@ -1,7 +1,7 @@
 // Finnhub (https://finnhub.io). Free key: ~60 calls/min, personal use,
 // mainly US listings. Historical candles are not on the free plan, so
 // history falls back to the fallback provider.
-import type { Quote, SearchResult } from "../../shared/types";
+import type { Fundamentals, Quote, SearchResult } from "../../shared/types";
 import { getJson, type MarketProvider } from "./types";
 
 const BASE = "https://finnhub.io/api/v1";
@@ -46,6 +46,23 @@ export function finnhubProvider(apiKey: string): MarketProvider {
           };
         }),
       );
+    },
+
+    async getFundamentals(symbol): Promise<Fundamentals> {
+      const m = (await getJson<FhMetric>(url(`/stock/metric?symbol=${encodeURIComponent(symbol)}&metric=all`))).metric ?? {};
+      return {
+        // Finnhub reports these ratios already in percent.
+        dividendYield: m.currentDividendYieldTTM,
+        payoutRatio: m.payoutRatioTTM ?? m.payoutRatioAnnual,
+        dividendPerShare: m.dividendPerShareTTM ?? m.dividendPerShareAnnual,
+        pe: m.peTTM ?? m.peBasicExclExtraTTM,
+        ps: m.psTTM ?? m.psAnnual,
+        pb: m.pbAnnual ?? m.pbQuarterly,
+        roe: m.roeTTM,
+        profitMargin: m.netProfitMarginTTM,
+        revenueGrowth: m.revenueGrowthTTMYoy,
+        beta: m.beta,
+      };
     },
 
     async search(query): Promise<SearchResult[]> {

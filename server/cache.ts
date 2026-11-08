@@ -4,11 +4,11 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-const DIR = path.resolve(".cache");
+const dir = () => path.resolve(process.env.CACHE_DIR ?? ".cache");
 const mem = new Map<string, { expires: number; value: unknown }>();
 const inflight = new Map<string, Promise<unknown>>();
 
-const file = (key: string) => path.join(DIR, createHash("sha1").update(key).digest("hex") + ".json");
+const file = (key: string) => path.join(dir(), createHash("sha1").update(key).digest("hex") + ".json");
 
 export async function cached<T>(key: string, ttlMs: number, load: () => Promise<T>): Promise<T> {
   const now = Date.now();
@@ -33,7 +33,7 @@ export async function cached<T>(key: string, ttlMs: number, load: () => Promise<
     .then(async (value) => {
       const entry = { expires: Date.now() + ttlMs, value };
       mem.set(key, entry);
-      await mkdir(DIR, { recursive: true });
+      await mkdir(dir(), { recursive: true });
       await writeFile(file(key), JSON.stringify(entry)).catch(() => undefined);
       return value;
     })

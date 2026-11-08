@@ -1,4 +1,4 @@
-import type { Candle, Health, HistoryRange, SearchResult, Watchlist, WatchlistRow } from "../shared/types";
+import type { Candle, Health, HistoryRange, SearchResult, UserStore, WatchlistRow } from "../shared/types";
 
 async function get<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init);
@@ -14,11 +14,11 @@ export const api = {
   history: (symbol: string, range: HistoryRange) =>
     get<Candle[]>(`/api/history/${encodeURIComponent(symbol)}?range=${range}`),
   search: (q: string) => get<SearchResult[]>(`/api/search?q=${encodeURIComponent(q)}`),
-  getLists: () => get<Watchlist[] | null>("/api/watchlists"),
-  saveLists: (lists: Watchlist[]) =>
-    get<Watchlist[]>("/api/watchlists", {
+  getStore: () => get<UserStore | null>("/api/store"),
+  saveStore: (store: UserStore) =>
+    get<UserStore>("/api/store", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(lists),
+      body: JSON.stringify(store),
     }),
 };

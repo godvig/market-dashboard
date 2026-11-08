@@ -47,14 +47,27 @@ export const yahooProvider: MarketProvider = {
 
   async getFundamentals(symbol: string): Promise<Fundamentals> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const res: any = await yf.quoteSummary(symbol, { modules: ["summaryDetail"] });
+    const res: any = await yf.quoteSummary(symbol, {
+      modules: ["summaryDetail", "defaultKeyStatistics", "financialData"],
+    });
     const s = res.summaryDetail ?? {};
+    const k = res.defaultKeyStatistics ?? {};
+    const f = res.financialData ?? {};
     return {
       // Forward yield if Yahoo has one, otherwise trailing.
       dividendYield: toPct(s.dividendYield ?? s.trailingAnnualDividendYield),
       payoutRatio: toPct(s.payoutRatio),
       dividendPerShare: s.dividendRate ?? s.trailingAnnualDividendRate,
       pe: s.trailingPE,
+      forwardPe: s.forwardPE ?? k.forwardPE,
+      ps: s.priceToSalesTrailing12Months,
+      pb: k.priceToBook,
+      evEbitda: k.enterpriseToEbitda,
+      roe: toPct(f.returnOnEquity),
+      profitMargin: toPct(f.profitMargins ?? k.profitMargins),
+      revenueGrowth: toPct(f.revenueGrowth),
+      beta: s.beta ?? k.beta,
+      marketCap: s.marketCap,
     };
   },
 

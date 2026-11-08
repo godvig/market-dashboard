@@ -6,10 +6,11 @@ A stock watchlist and analysis dashboard that pulls data from free market-data A
 
 ## Features
 
-- **Named watchlists.** Create, rename (double-click the tab), duplicate and delete lists. They're saved on the server in `data/watchlists.json`, with a backup copy in the browser. Export/import as JSON
+- **Sidebar with categories.** Group watchlists into categories, drag lists between categories and drag categories to reorder them. Double-click to rename. Everything is saved on the server in `data/store.json`, with a backup copy in the browser. Export/import lists as JSON
+- **Column picker.** Choose which columns to show: standard price/return/risk columns, then — right of a divider — extra key figures (dividend yield, payout ratio, dividend/share, P/E, forward P/E, P/S, P/B, EV/EBIT, EV/EBITDA, market cap, ROE, profit margin, revenue growth, net debt/EBITDA, beta)
 - **Sortable, filterable table.** Price, day change, 1M/3M/1Y/YTD returns, volatility, max drawdown, distance from the 52-week high, price vs SMA200, RSI(14), P/E, dividend yield, payout ratio and market cap
 - **Original and SEK side by side.** Price, market cap, dividend per share and 52-week range are shown in the listing currency *and* converted to your base currency (`BASE_CURRENCY`, default SEK). Market cap sorts on the converted value, so it's comparable across markets
-- **Detail view.** Candlestick chart (6 mo – 5 y) with SMA50/SMA200 overlays, plus key stats
+- **Stock view.** Its own page with a breadcrumb (`List › Ticker`): click the list name, press Esc or use the browser's back button to return; ← / → steps through the list. Candlestick chart (6 mo – 5 y) with SMA50/SMA200 and every key figure available
 - **Ticker search** with autocomplete. The watchlist is saved in the browser
 - **Pluggable data providers.** Choose Yahoo Finance, Finnhub, Financial Modeling Prep or offline mock data with one env variable
 - **Quota-friendly.** A server-side cache (memory and disk) keeps you inside free-tier limits, and API keys never reach the browser
@@ -32,12 +33,13 @@ npm run check                    # VOLV-B.ST, INVE-B.ST, AAPL, KO
 npm run check -- SAND.ST ASML.AS # your own tickers
 ```
 
-For each ticker this prints the quote, exchange rate, dividend yield, payout ratio and one year of history from the configured provider, with ✔ or ✘ per step. Compare a few figures with Avanza, Nordnet or finance.yahoo.com.
+For each ticker this prints the quote, exchange rate, every key figure each provider returns, and one year of history, with ✔ or ✘ per step. With `PROVIDER=borsdata` it's the quickest way to confirm your API key and the KPI mapping work. Compare a few figures with Avanza, Nordnet or finance.yahoo.com.
 
 ## Data providers
 
 | `PROVIDER` | Key | Free limits (check provider docs) | Coverage | Notes |
 |---|---|---|---|---|
+| `borsdata` | `BORSDATA_API_KEY` | 100 calls/10 s, aim < 10 000/day | Nordic (+ global with Pro+) | Official Börsdata API, needs Pro+. Uses the Yahoo ticker stored on each Börsdata instrument, so your tickers stay the same. KPI ids are found by name from `/instruments/kpis/metadata` (override with e.g. `BORSDATA_KPI_PE=2`) |
 | `yahoo` (default) | none | unofficial, no published limit | global incl. `.ST`, `.AS`, `.DE` | Uses [`yahoo-finance2`](https://github.com/gadicc/yahoo-finance2). Not an official API, so it can break or throttle |
 | `finnhub` | `FINNHUB_API_KEY` | ~60 calls/min, personal use | mainly US | Quotes, profile and metrics. History falls back to Yahoo |
 | `fmp` | `FMP_API_KEY` | 250 requests/day, EOD data | mainly US | Uses the `stable` API |
@@ -45,15 +47,18 @@ For each ticker this prints the quote, exchange rate, dividend yield, payout rat
 
 Exchange rates come from [Frankfurter](https://frankfurter.dev) (ECB reference rates, free, no key, updated once per working day – the same rates the Riksbank publishes), with Yahoo currency pairs (`USDSEK=X`) as a fallback. Listings quoted in pence (`GBp`) are converted to pounds first.
 
+**Fallback per ticker:** when the chosen provider doesn't have a ticker (say, an ETF that Börsdata lacks), the quote and history come from Yahoo instead, and key figures missing from the main provider are filled in from Yahoo. The stock view shows which source delivered the price.
+
 To add another source, implement `MarketProvider` in `server/providers/` and register it in `server/providers/index.ts`.
 
 ## Project layout
 
 ```
-server/            Express API (proxy, cache, providers, watchlist storage)
-  providers/       yahoo · finnhub · fmp · mock adapters
+server/            Express API (proxy, cache, providers, FX, storage)
+  providers/       yahoo · borsdata · finnhub · fmp · mock adapters
 shared/            Types + analysis functions (used by server and client)
 src/               React client (Vite, TanStack Table, lightweight-charts)
+  columns.tsx      every table column in one registry
 ```
 
 ## Scripts
