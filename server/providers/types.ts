@@ -7,6 +7,8 @@ import type { Candle, Fundamentals, HistoryRange, Quote, SearchResult } from "..
  */
 export interface MarketProvider {
   name: string;
+  /** getQuotes() handles many symbols in one request. */
+  batchQuotes?: boolean;
   getQuotes(symbols: string[]): Promise<Quote[]>;
   getHistory?(symbol: string, range: HistoryRange): Promise<Candle[]>;
   search?(query: string): Promise<SearchResult[]>;

@@ -4,11 +4,13 @@
 import YahooFinance from "yahoo-finance2";
 import type { Candle, Fundamentals, HistoryRange, Quote, SearchResult } from "../../shared/types";
 import { startDate, toPct, type MarketProvider } from "./types";
+import { clean, fromAnnual, fromDividends, fromSummary } from "./yahooParse";
 
 const yf = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
 export const yahooProvider: MarketProvider = {
   name: "yahoo",
+  batchQuotes: true,
 
   async getQuotes(symbols) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -45,30 +47,29 @@ export const yahooProvider: MarketProvider = {
       }));
   },
 
+  /**
+   * Three calls, each allowed to fail on its own: key statistics, annual
+   * statements (growth, equity ratio) and dividend history.
+   */
   async getFundamentals(symbol: string): Promise<Fundamentals> {
+    const noValidate = { validateResult: false } as const;
+    const [summary, annual, dividends] = await Promise.all([
+      yf
+        .quoteSummary(symbol, { modules: ["summaryDetail", "defaultKeyStatistics", "financialData"] }, noValidate)
+        .catch(() => null),
+      yf
+        .fundamentalsTimeSeries(symbol, { period1: new Date(Date.now() - 6 * 366 * 86_400_000), type: "annual", module: "all" }, noValidate)
+        .catch(() => null),
+      yf.chart(symbol, { period1: "1995-01-01", interval: "1mo", events: "div" }, noValidate).catch(() => null),
+    ]);
+    if (!summary && !annual && !dividends) throw new Error(`No key figures from Yahoo for ${symbol}`);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const res: any = await yf.quoteSummary(symbol, {
-      modules: ["summaryDetail", "defaultKeyStatistics", "financialData"],
+    const divEvents = ((dividends as any)?.events?.dividends ?? []) as { date: Date; amount: number }[];
+    return clean({
+      ...fromSummary((summary ?? {}) as Record<string, unknown>),
+      ...fromAnnual(((annual ?? []) as unknown) as Record<string, unknown>[]),
+      ...fromDividends(Array.isArray(divEvents) ? divEvents : Object.values(divEvents)),
     });
-    const s = res.summaryDetail ?? {};
-    const k = res.defaultKeyStatistics ?? {};
-    const f = res.financialData ?? {};
-    return {
-      // Forward yield if Yahoo has one, otherwise trailing.
-      dividendYield: toPct(s.dividendYield ?? s.trailingAnnualDividendYield),
-      payoutRatio: toPct(s.payoutRatio),
-      dividendPerShare: s.dividendRate ?? s.trailingAnnualDividendRate,
-      pe: s.trailingPE,
-      forwardPe: s.forwardPE ?? k.forwardPE,
-      ps: s.priceToSalesTrailing12Months,
-      pb: k.priceToBook,
-      evEbitda: k.enterpriseToEbitda,
-      roe: toPct(f.returnOnEquity),
-      profitMargin: toPct(f.profitMargins ?? k.profitMargins),
-      revenueGrowth: toPct(f.revenueGrowth),
-      beta: s.beta ?? k.beta,
-      marketCap: s.marketCap,
-    };
   },
 
   async search(query: string): Promise<SearchResult[]> {

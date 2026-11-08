@@ -93,7 +93,22 @@ export function ytdReturn(candles: Candle[]): number | null {
   return (last.close / base.close - 1) * 100;
 }
 
-export function computeMetrics(candles: Candle[]): Metrics {
+/**
+ * Sharpe ratio over the last year: (annualised return − risk-free rate) /
+ * annualised volatility. `riskFree` in percent, e.g. 2 = 2 %.
+ */
+export function sharpe(closes: number[], riskFree = 2, lookback = TRADING_DAYS): number | null {
+  const slice = closes.slice(-(lookback + 1));
+  if (slice.length < 60) return null;
+  const rets: number[] = [];
+  for (let i = 1; i < slice.length; i++) rets.push(slice[i] / slice[i - 1] - 1);
+  const mean = rets.reduce((a, b) => a + b, 0) / rets.length;
+  const sd = Math.sqrt(rets.reduce((a, r) => a + (r - mean) ** 2, 0) / (rets.length - 1));
+  if (sd === 0) return null;
+  return (mean * TRADING_DAYS - riskFree / 100) / (sd * Math.sqrt(TRADING_DAYS));
+}
+
+export function computeMetrics(candles: Candle[], riskFree = 2): Metrics {
   const closes = candles.map((c) => c.close);
   const last = closes[closes.length - 1];
   const s200 = sma(closes, 200);
@@ -111,11 +126,12 @@ export function computeMetrics(candles: Candle[]): Metrics {
     sma200: s200,
     vsSma200: s200 && last ? (last / s200 - 1) * 100 : null,
     fromHigh: yearHigh && last ? (last / yearHigh - 1) * 100 : null,
+    sharpe: sharpe(closes, riskFree),
   };
 }
 
 export const emptyMetrics: Metrics = {
   ret1m: null, ret3m: null, ret6m: null, ret1y: null, retYtd: null,
   volatility: null, maxDrawdown: null, rsi14: null, sma50: null,
-  sma200: null, vsSma200: null, fromHigh: null,
+  sma200: null, vsSma200: null, fromHigh: null, sharpe: null,
 };

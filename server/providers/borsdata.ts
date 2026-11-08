@@ -36,24 +36,49 @@ interface KpiValue { i: number; n?: number | null; s?: string | null }
  * KPI ids are looked up from /instruments/kpis/metadata at runtime; override
  * with e.g. BORSDATA_KPI_PE=2 if a name ever changes.
  */
-const KPI_NAMES: Record<keyof Fundamentals, string[]> = {
+const KPI_NAMES: Partial<Record<keyof Fundamentals, string[]>> = {
   dividendYield: ["Direktavkastning", "Dividend Yield"],
   payoutRatio: ["Utdelningsandel", "Dividend Payout", "Payout Ratio"],
   dividendPerShare: ["Utdelning/aktie", "Utdelning", "Dividend/Share", "Dividend"],
   pe: ["P/E"],
   forwardPe: ["P/E (fwd)", "Forward P/E"],
+  peg: ["PEG"],
   ps: ["P/S"],
   pb: ["P/B"],
   evEbit: ["EV/EBIT"],
   evEbitda: ["EV/EBITDA"],
+  eps: ["Vinst/aktie", "EPS", "Earnings/Share"],
   roe: ["ROE", "Avkastning på eget kapital", "Return on Equity"],
+  roa: ["ROA", "Avkastning på totalt kapital", "Return on Assets"],
   profitMargin: ["Vinstmarginal", "Profit Margin"],
-  revenueGrowth: ["Omsättningstillväxt", "Revenue Growth"],
+  operatingMargin: ["Rörelsemarginal", "EBIT-marginal", "Operating Margin", "EBIT Margin"],
+  ebitdaMargin: ["EBITDA-marginal", "EBITDA Margin"],
+  fcfMargin: ["FCF-marginal", "FCF Margin"],
+  quickRatio: ["Kassalikviditet", "Quick Ratio"],
+  debtToEquity: ["Skuldsättningsgrad", "Debt/Equity"],
+  equityRatio: ["Soliditet", "Equity Ratio"],
   netDebtEbitda: ["Nettoskuld/EBITDA", "Net Debt/EBITDA"],
   beta: ["Beta"],
   marketCap: ["Börsvärde", "Market Cap"],
 };
-const PERCENT_KEYS = new Set<keyof Fundamentals>(["dividendYield", "payoutRatio", "roe", "profitMargin", "revenueGrowth"]);
+
+/**
+ * Growth: Börsdata computes CAGR over 1/3/5/10 years for a base KPI
+ * (/instruments/kpis/{id}/{N}year/cagr). Prefix → base KPI names.
+ */
+const GROWTH_BASES: Record<"revenue" | "earnings" | "eps" | "ebitda" | "dividend", string[]> = {
+  revenue: ["Omsättning", "Revenue", "Sales"],
+  earnings: ["Vinst", "Nettoresultat", "Earnings", "Net Income"],
+  eps: ["Vinst/aktie", "EPS", "Earnings/Share"],
+  ebitda: ["EBITDA"],
+  dividend: ["Utdelning/aktie", "Utdelning", "Dividend/Share", "Dividend"],
+};
+const OPERATING_INCOME = ["Rörelseresultat", "EBIT", "Operating Income"];
+const GROWTH_PERIODS: [string, string][] = [["1year", "Growth"], ["3year", "Cagr3y"], ["5year", "Cagr5y"], ["10year", "Cagr10y"]];
+
+const PERCENT_KEYS = new Set<string>([
+  "dividendYield", "payoutRatio", "roe", "roa", "profitMargin", "operatingMargin", "ebitdaMargin", "fcfMargin", "equityRatio",
+]);
 
 const norm = (s?: string) => (s ?? "").toLowerCase().replace(/\s+/g, "");
 const median = (xs: number[]) => {
@@ -135,38 +160,46 @@ export function borsdataProvider(apiKey: string, env: NodeJS.ProcessEnv = {}): M
   const kpiIds = () =>
     cached(`${ns}:kpi-ids`, DAY, async () => {
       const meta = (await call<{ kpiHistoryMetadatas?: KpiMeta[] }>("/instruments/kpis/metadata")).kpiHistoryMetadatas ?? [];
-      const ids: Partial<Record<keyof Fundamentals, number>> = {};
-      for (const [key, names] of Object.entries(KPI_NAMES) as [keyof Fundamentals, string[]][]) {
+      const find = (key: string, names: string[]) => {
         const override = env[`BORSDATA_KPI_${key.replace(/[A-Z]/g, (c) => "_" + c).toUpperCase()}`];
-        if (override) {
-          ids[key] = Number(override);
-          continue;
-        }
+        if (override) return Number(override);
         const wanted = names.map(norm);
-        const m = meta.find((k) => !k.isString && (wanted.includes(norm(k.nameSv)) || wanted.includes(norm(k.nameEn))));
-        if (m) ids[key] = m.kpiId;
+        return meta.find((k) => !k.isString && (wanted.includes(norm(k.nameSv)) || wanted.includes(norm(k.nameEn))))?.kpiId;
+      };
+      const ids: Record<string, number> = {};
+      for (const [key, names] of Object.entries(KPI_NAMES)) {
+        const id = find(key, names!);
+        if (id != null) ids[key] = id;
       }
+      // Growth bases are stored as "base:<prefix>"
+      for (const [prefix, names] of Object.entries(GROWTH_BASES)) {
+        const id = find(`${prefix}Base`, names);
+        if (id != null) ids[`base:${prefix}`] = id;
+      }
+      const op = find("operatingIncomeBase", OPERATING_INCOME);
+      if (op != null) ids["base:operatingIncome"] = op;
       return ids;
     });
 
   /** All Nordic instruments' latest value for one KPI, plus the detected scale. */
-  const kpiAll = (kpiId: number) =>
-    cached(`${ns}:kpi:${kpiId}`, 12 * 3_600_000, async () => {
-      const r = await call<{ values?: KpiValue[] }>(`/instruments/kpis/${kpiId}/last/latest`);
+  const kpiAll = (kpiId: number, group = "last", calc = "latest") =>
+    cached(`${ns}:kpi:${kpiId}:${group}:${calc}`, 12 * 3_600_000, async () => {
+      const r = await call<{ values?: KpiValue[] }>(`/instruments/kpis/${kpiId}/${group}/${calc}`);
       const values: Record<number, number> = {};
       for (const v of r.values ?? []) if (typeof v.n === "number") values[v.i] = v.n;
       return { values, median: median(Object.values(values)) };
     });
 
-  const kpiOne = (insId: number, kpiId: number) =>
-    cached(`${ns}:kpi:${kpiId}:${insId}`, 12 * 3_600_000, async () => {
-      const r = await call<{ value?: KpiValue }>(`/instruments/${insId}/kpis/${kpiId}/last/latest`);
+  const kpiOne = (insId: number, kpiId: number, group = "last", calc = "latest") =>
+    cached(`${ns}:kpi:${kpiId}:${group}:${calc}:${insId}`, 12 * 3_600_000, async () => {
+      const r = await call<{ value?: KpiValue }>(`/instruments/${insId}/kpis/${kpiId}/${group}/${calc}`);
       return typeof r.value?.n === "number" ? r.value.n : null;
     });
 
   /** Börsdata may return percentages as fractions and market cap in millions; normalise. */
-  function scale(key: keyof Fundamentals, v: number, med: number): number {
-    if (PERCENT_KEYS.has(key) && med > 0 && med < 1) return v * 100;
+  function scale(key: string, v: number, med: number): number {
+    const isPct = PERCENT_KEYS.has(key) || /Growth$|Cagr\d+y$/.test(key);
+    if (isPct && med > 0 && med < 1) return v * 100;
     if (key === "marketCap" && med > 0 && med < 1e7) return v * 1e6;
     return v;
   }
@@ -207,18 +240,28 @@ export function borsdataProvider(apiKey: string, env: NodeJS.ProcessEnv = {}): M
     async getFundamentals(symbol: string): Promise<Fundamentals> {
       const inst = await resolve(symbol);
       const ids = await kpiIds();
-      const out: Fundamentals = {};
-      for (const [key, id] of Object.entries(ids) as [keyof Fundamentals, number][]) {
+      const out: Record<string, number> = {};
+      const fetchOne = async (key: string, id: number, group = "last", calc = "latest") => {
         try {
-          const all = await kpiAll(id);
+          const all = await kpiAll(id, group, calc);
           let v: number | null | undefined = all.values[inst.insId];
-          if (v == null && inst.global) v = await kpiOne(inst.insId, id); // global stocks aren't in the bulk list
+          if (v == null && inst.global) v = await kpiOne(inst.insId, id, group, calc); // global stocks aren't in the bulk list
           if (v != null && Number.isFinite(v)) out[key] = scale(key, v, all.median);
         } catch {
           /* one missing KPI shouldn't hide the rest */
         }
+      };
+      const jobs: Promise<void>[] = [];
+      for (const [key, id] of Object.entries(ids)) {
+        if (!key.startsWith("base:")) jobs.push(fetchOne(key, id));
       }
-      return out;
+      for (const prefix of Object.keys(GROWTH_BASES)) {
+        const id = ids[`base:${prefix}`];
+        if (id != null) for (const [group, suffix] of GROWTH_PERIODS) jobs.push(fetchOne(`${prefix}${suffix}`, id, group, "cagr"));
+      }
+      if (ids["base:operatingIncome"] != null) jobs.push(fetchOne("operatingIncomeGrowth", ids["base:operatingIncome"], "1year", "cagr"));
+      await Promise.all(jobs);
+      return out as Fundamentals;
     },
 
     async search(query): Promise<SearchResult[]> {

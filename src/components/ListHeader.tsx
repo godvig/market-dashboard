@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import type { ListGroup, Watchlist } from "../../shared/types";
+import { isImportBundle, type ImportBundle } from "../useStore";
 
 interface Props {
   list: Watchlist;
@@ -10,10 +11,11 @@ interface Props {
   onDuplicate: () => void;
   onDelete: () => void;
   onImport: (lists: Watchlist[]) => void;
+  onImportBundle: (bundle: ImportBundle) => void;
 }
 
 /** Title and actions for the open watchlist. */
-export function ListHeader({ list, group, canDelete, allLists, onRename, onDuplicate, onDelete, onImport }: Props) {
+export function ListHeader({ list, group, canDelete, allLists, onRename, onDuplicate, onDelete, onImport, onImportBundle }: Props) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [confirm, setConfirm] = useState(false);
@@ -37,6 +39,11 @@ export function ListHeader({ list, group, canDelete, allLists, onRename, onDupli
   const importFile = async (file: File) => {
     try {
       const data = JSON.parse(await file.text());
+      if (isImportBundle(data)) {
+        onImportBundle(data);
+        setImportError(undefined);
+        return;
+      }
       const arr = Array.isArray(data) ? data : Array.isArray(data?.lists) ? data.lists : [data];
       const valid = arr.filter((l: Watchlist) => l && typeof l.name === "string" && Array.isArray(l.symbols));
       if (!valid.length) throw new Error("No watchlists found in the file");
@@ -96,7 +103,7 @@ export function ListHeader({ list, group, canDelete, allLists, onRename, onDupli
             <button onClick={exportLists} title="Download all lists as a JSON file">
               Export
             </button>
-            <button onClick={() => fileInput.current?.click()} title="Add lists from an exported JSON file">
+            <button onClick={() => fileInput.current?.click()} title="Add lists from an exported JSON file or an import file (e.g. from your spreadsheet)">
               Import
             </button>
             <input

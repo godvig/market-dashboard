@@ -40,6 +40,7 @@ function fakeApi(url: string) {
           { kpiId: 2, nameSv: "P/E", nameEn: "P/E", isString: false },
           { kpiId: 20, nameSv: "Utdelningsandel", nameEn: "Dividend Payout", isString: false },
           { kpiId: 50, nameSv: "Börsvärde", nameEn: "Market Cap", isString: false },
+          { kpiId: 60, nameSv: "Omsättning", nameEn: "Revenue", isString: false },
         ],
       },
     };
@@ -52,6 +53,9 @@ function fakeApi(url: string) {
   };
   const m = p.match(/^\/instruments\/kpis\/(\d+)\/last\/latest$/);
   if (m) return { body: { values: bulk[m[1]] ?? [] } };
+  // Revenue CAGR as fractions: 3 years 8 %, 10 years 6 %.
+  const g = p.match(/^\/instruments\/kpis\/60\/(\d+)year\/cagr$/);
+  if (g) return { body: { values: g[1] === "3" ? [{ i: 750, n: 0.08 }, { i: 77, n: 0.02 }] : g[1] === "10" ? [{ i: 750, n: 0.06 }, { i: 77, n: 0.01 }] : [] } };
   const one = p.match(/^\/instruments\/(\d+)\/kpis\/(\d+)\/last\/latest$/);
   if (one) return { body: { value: { i: Number(one[1]), n: one[2] === "2" ? 33 : null } } };
   return { status: 404, body: {} };
@@ -91,6 +95,13 @@ describe("borsdataProvider", () => {
     expect(f.payoutRatio).toBeCloseTo(50);
     expect(f.pe).toBe(11.2);
     expect(f.marketCap).toBe(450_000e6);
+  });
+
+  it("fetches growth as CAGR over 3/5/10 years and converts fractions to percent", async () => {
+    const f = await bd.getFundamentals!("VOLV-B.ST");
+    expect(f.revenueCagr3y).toBeCloseTo(8);
+    expect(f.revenueCagr10y).toBeCloseTo(6);
+    expect(f.revenueCagr5y).toBeUndefined();
   });
 
   it("asks per instrument for global stocks not in the bulk list", async () => {

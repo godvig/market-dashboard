@@ -22,32 +22,45 @@ export interface Quote {
 }
 
 /**
- * Slow-changing key figures, fetched separately and cached for hours.
- * Percent values are in percent (12.5 = 12.5 %). Amounts are in the
- * listing currency.
+ * Every key figure the app knows, in one list. Percent values are in
+ * percent (12.5 = 12.5 %), multiples as plain numbers (P/E 14.2), amounts
+ * in the listing currency. Growth keys: "…Growth" = latest year,
+ * "…Cagr3y/5y/10y" = compound annual growth over that many years.
  */
-export interface Fundamentals {
-  dividendYield?: number;
-  payoutRatio?: number;
-  dividendPerShare?: number;
-  pe?: number;
-  forwardPe?: number;
-  ps?: number;
-  pb?: number;
-  evEbit?: number;
-  evEbitda?: number;
-  roe?: number;
-  profitMargin?: number;
-  revenueGrowth?: number;
-  netDebtEbitda?: number;
-  beta?: number;
-  marketCap?: number;
-}
+export const FUNDAMENTAL_KEYS = [
+  // dividends
+  "dividendYield", "payoutRatio", "dividendPerShare",
+  "dividendGrowth", "dividendCagr3y", "dividendCagr5y", "dividendCagr10y",
+  "dividendYearsPaid", "dividendYearsNoCut", "dividendYearsRaised",
+  // valuation
+  "pe", "forwardPe", "peg", "ps", "pb", "evEbit", "evEbitda", "marketCap", "eps",
+  // profitability
+  "roe", "roa", "profitMargin", "operatingMargin", "ebitdaMargin", "fcfMargin",
+  // balance sheet & risk
+  "quickRatio", "debtToEquity", "equityRatio", "netDebtEbitda", "beta",
+  // growth
+  "revenueGrowth", "revenueCagr3y", "revenueCagr5y", "revenueCagr10y",
+  "earningsGrowth", "earningsCagr3y", "earningsCagr5y", "earningsCagr10y",
+  "epsGrowth", "epsCagr3y", "epsCagr5y", "epsCagr10y",
+  "ebitdaGrowth", "ebitdaCagr3y", "ebitdaCagr5y", "ebitdaCagr10y",
+  "operatingIncomeGrowth",
+] as const;
 
-export const FUNDAMENTAL_KEYS: (keyof Fundamentals)[] = [
-  "dividendYield", "payoutRatio", "dividendPerShare", "pe", "forwardPe", "ps", "pb", "evEbit",
-  "evEbitda", "roe", "profitMargin", "revenueGrowth", "netDebtEbitda", "beta", "marketCap",
-];
+export type FundamentalKey = (typeof FUNDAMENTAL_KEYS)[number];
+
+/** Slow-changing key figures, fetched separately and cached for hours. */
+export type Fundamentals = Partial<Record<FundamentalKey, number>>;
+
+/** A stock's own data that the user keeps: classification, notes, own assessments. */
+export interface StockMeta {
+  name?: string;
+  sector?: string;
+  niche?: string;
+  country?: string;
+  note?: string;
+  /** Manual criteria (e.g. "trendSector"), 0–3 where 3 is best. */
+  assessments?: Record<string, number>;
+}
 
 export interface Watchlist {
   id: string;
@@ -70,6 +83,9 @@ export interface UserStore {
   lists: Watchlist[];
   /** Visible column ids, in order. Undefined = defaults. */
   columns?: string[];
+  /** Per-ticker data the user keeps (sector, notes, assessments). Never sent anywhere but the local server. */
+  stocks?: Record<string, StockMeta>;
+  settings?: { trafficLights?: boolean };
 }
 
 export interface Candle {
@@ -103,6 +119,7 @@ export interface Metrics {
   sma200: number | null;
   vsSma200: number | null; // percent above/below SMA200
   fromHigh: number | null; // percent below 52w high (<= 0)
+  sharpe: number | null; // 1-year Sharpe ratio (excess return / volatility)
 }
 
 export interface WatchlistRow {

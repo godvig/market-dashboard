@@ -3,7 +3,7 @@
 // on this machine. Older data/watchlists.json files are migrated.
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { ListGroup, UserStore, Watchlist } from "../shared/types";
+import type { ListGroup, StockMeta, UserStore, Watchlist } from "../shared/types";
 
 const DIR = path.resolve(process.env.DATA_DIR ?? "data");
 const FILE = path.join(DIR, "store.json");
@@ -60,7 +60,7 @@ export function parseStore(input: unknown): UserStore {
       ...new Set(o.symbols.filter((s): s is string => typeof s === "string").map((s) => s.trim().toUpperCase())),
     ]
       .filter(Boolean)
-      .slice(0, 100);
+      .slice(0, 300);
     const groupId = typeof o.groupId === "string" && groupIds.has(o.groupId) ? o.groupId : undefined;
     return { id, name, symbols, ...(groupId ? { groupId } : {}) };
   });
@@ -69,5 +69,45 @@ export function parseStore(input: unknown): UserStore {
     ? raw.columns.filter((c): c is string => typeof c === "string").slice(0, 60)
     : undefined;
 
-  return { version: 2, groups, lists, ...(columns ? { columns } : {}) };
+  const stocks = parseStocks(raw.stocks);
+  const settings =
+    raw.settings && typeof raw.settings === "object" && typeof (raw.settings as Record<string, unknown>).trafficLights === "boolean"
+      ? { trafficLights: (raw.settings as { trafficLights: boolean }).trafficLights }
+      : undefined;
+
+  return {
+    version: 2,
+    groups,
+    lists,
+    ...(columns ? { columns } : {}),
+    ...(stocks ? { stocks } : {}),
+    ...(settings ? { settings } : {}),
+  };
+}
+
+/** Per-ticker notes and assessments; unknown fields are dropped, text is length-limited. */
+function parseStocks(input: unknown): Record<string, StockMeta> | undefined {
+  if (!input || typeof input !== "object") return undefined;
+  const out: Record<string, StockMeta> = {};
+  for (const [sym, v] of Object.entries(input as Record<string, unknown>).slice(0, 5000)) {
+    if (!v || typeof v !== "object") continue;
+    const o = v as Record<string, unknown>;
+    const m: StockMeta = {};
+    for (const k of ["name", "sector", "niche", "country"] as const) {
+      const t = str(o[k], 120);
+      if (t) m[k] = t;
+    }
+    const note = typeof o.note === "string" ? o.note.slice(0, 20_000) : "";
+    if (note.trim()) m.note = note;
+    if (o.assessments && typeof o.assessments === "object") {
+      const a: Record<string, number> = {};
+      for (const [k, n] of Object.entries(o.assessments as Record<string, unknown>)) {
+        if (typeof n === "number" && n >= 0 && n <= 3 && /^[a-zA-Z]{1,40}$/.test(k)) a[k] = Math.round(n);
+      }
+      if (Object.keys(a).length) m.assessments = a;
+    }
+    const key = sym.trim().toUpperCase().slice(0, 40);
+    if (key && Object.keys(m).length) out[key] = m;
+  }
+  return Object.keys(out).length ? out : undefined;
 }

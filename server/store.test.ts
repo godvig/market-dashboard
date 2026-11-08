@@ -26,6 +26,21 @@ describe("parseStore", () => {
     expect(parseStore({ lists: [{ id: "a", name: "x", symbols: [] }], columns: ["price", "pe", 7] }).columns).toEqual(["price", "pe"]);
   });
 
+  it("keeps stock notes and assessments, drops junk", () => {
+    const s = parseStore({
+      lists: [{ id: "a", name: "x", symbols: [] }],
+      stocks: {
+        "volv-b.st": { sector: "Industri", niche: "Lantbruk & Tunga Byggmaskiner", note: "Bra bolag", assessments: { trendSector: 3, outlook: 9, "bad key!": 1 }, evil: "x" },
+        EMPTY: {},
+      },
+      settings: { trafficLights: false },
+    });
+    expect(s.stocks).toEqual({
+      "VOLV-B.ST": { sector: "Industri", niche: "Lantbruk & Tunga Byggmaskiner", note: "Bra bolag", assessments: { trendSector: 3 } },
+    });
+    expect(s.settings).toEqual({ trafficLights: false });
+  });
+
   it("rejects bad input", () => {
     expect(() => parseStore({ lists: [] })).toThrow();
     expect(() => parseStore({ lists: [{ id: "a", name: "", symbols: [] }] })).toThrow();

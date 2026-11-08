@@ -9,23 +9,25 @@ import {
 } from "@tanstack/react-table";
 import { useMemo, useState, type ReactNode } from "react";
 import type { WatchlistRow } from "../../shared/types";
-import { visibleColumns } from "../columns";
+import { metaOf, visibleColumns, type Ctx } from "../columns";
 
 const col = createColumnHelper<WatchlistRow>();
 
 interface Props {
   rows: WatchlistRow[];
-  baseCurrency: string;
+  ctx: Ctx;
   columnIds?: string[];
   toolbar?: ReactNode;
+  /** Shown above the table while rows are still arriving. */
+  progress?: string;
   onOpen: (symbol: string) => void;
   onRemove: (symbol: string) => void;
+  onFix: (symbol: string) => void;
 }
 
-export function WatchlistTable({ rows, baseCurrency, columnIds, toolbar, onOpen, onRemove }: Props) {
+export function WatchlistTable({ rows, ctx, columnIds, toolbar, progress, onOpen, onRemove, onFix }: Props) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filter, setFilter] = useState("");
-  const ctx = useMemo(() => ({ baseCurrency }), [baseCurrency]);
   const defs = useMemo(() => visibleColumns(columnIds), [columnIds]);
   const firstExtra = defs.find((d) => d.tier === "extra")?.id;
 
@@ -36,21 +38,36 @@ export function WatchlistTable({ rows, baseCurrency, columnIds, toolbar, onOpen,
         header: "Symbol",
         cell: (c) => <strong>{c.getValue()}</strong>,
       }),
-      col.accessor((r) => r.quote.name, {
+      // Your own name for the company (e.g. from the spreadsheet) wins over the provider's.
+      col.accessor((r) => metaOf(r, ctx)?.name ?? r.quote.name, {
         id: "name",
         header: "Name",
-        cell: (c) => (
-          <span className="name" title={c.row.original.error ?? c.getValue()}>
-            {c.row.original.error ? `⚠ ${c.row.original.error}` : c.getValue()}
-          </span>
-        ),
+        cell: (c) =>
+          c.row.original.error ? (
+            <span className="name err" title={c.row.original.error}>
+              ⚠ {c.getValue()}{" "}
+              <button
+                className="link"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onFix(c.row.original.quote.symbol);
+                }}
+              >
+                Find ticker
+              </button>
+            </span>
+          ) : (
+            <span className="name" title={c.row.original.quote.name}>
+              {c.getValue()}
+            </span>
+          ),
       }),
       ...defs.map((d) =>
         // undefined (not null) so TanStack's sortUndefined keeps missing values last
         col.accessor((r) => d.value(r, ctx) ?? undefined, {
           id: d.id,
           header: d.label,
-          meta: { title: d.title, divider: d.id === firstExtra },
+          meta: { title: d.title, divider: d.id === firstExtra, left: d.align === "left" },
           sortingFn: "basic",
           sortUndefined: "last",
           cell: (c) => (d.render ? d.render(c.row.original, ctx) : String(c.getValue() ?? "–")),
@@ -73,7 +90,7 @@ export function WatchlistTable({ rows, baseCurrency, columnIds, toolbar, onOpen,
         ),
       }),
     ],
-    [defs, ctx, firstExtra, onRemove],
+    [defs, ctx, firstExtra, onRemove, onFix],
   );
 
   const table = useReactTable({
@@ -99,6 +116,7 @@ export function WatchlistTable({ rows, baseCurrency, columnIds, toolbar, onOpen,
         <span className="muted">
           {table.getRowModel().rows.length} of {rows.length}
         </span>
+        {progress && <span className="progress">{progress}</span>}
         <div className="spacer" />
         {toolbar}
       </div>
@@ -109,13 +127,13 @@ export function WatchlistTable({ rows, baseCurrency, columnIds, toolbar, onOpen,
               <tr key={hg.id}>
                 {hg.headers.map((h) => {
                   const sorted = h.column.getIsSorted();
-                  const meta = h.column.columnDef.meta as { title?: string; divider?: boolean } | undefined;
+                  const meta = h.column.columnDef.meta as { title?: string; divider?: boolean; left?: boolean } | undefined;
                   return (
                     <th
                       key={h.id}
                       title={meta?.title}
                       onClick={h.column.getCanSort() ? h.column.getToggleSortingHandler() : undefined}
-                      className={[h.column.getCanSort() ? "sortable" : "", meta?.divider ? "divider" : ""].join(" ")}
+                      className={[h.column.getCanSort() ? "sortable" : "", meta?.divider ? "divider" : "", meta?.left ? "left" : ""].join(" ")}
                     >
                       {flexRender(h.column.columnDef.header, h.getContext())}
                       {sorted === "asc" ? " ▲" : sorted === "desc" ? " ▼" : ""}
@@ -129,9 +147,9 @@ export function WatchlistTable({ rows, baseCurrency, columnIds, toolbar, onOpen,
             {table.getRowModel().rows.map((r) => (
               <tr key={r.id} onClick={() => onOpen(r.original.quote.symbol)}>
                 {r.getVisibleCells().map((c) => {
-                  const meta = c.column.columnDef.meta as { divider?: boolean } | undefined;
+                  const meta = c.column.columnDef.meta as { divider?: boolean; left?: boolean } | undefined;
                   return (
-                    <td key={c.id} className={meta?.divider ? "divider" : undefined}>
+                    <td key={c.id} className={[meta?.divider ? "divider" : "", meta?.left ? "left" : ""].join(" ") || undefined}>
                       {flexRender(c.column.columnDef.cell, c.getContext())}
                     </td>
                   );

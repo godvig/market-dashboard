@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ListGroup, UserStore, Watchlist } from "../shared/types";
+import type { ListGroup, StockMeta, UserStore, Watchlist } from "../shared/types";
 import { api } from "./api";
 
 const BACKUP_KEY = "market-dashboard.store";
@@ -8,6 +8,20 @@ const OLD_KEYS = ["market-dashboard.lists", "market-dashboard.watchlist"]; // v0
 export const DEFAULT_WATCHLIST = ["VOLV-B.ST", "ERIC-B.ST", "INVE-B.ST", "ASML.AS", "AAPL", "MSFT", "NVDA", "SPY"];
 
 export const newId = () => Math.random().toString(36).slice(2, 10);
+
+/**
+ * File format for importing lists with categories and per-stock info
+ * (e.g. generated from a spreadsheet). Groups and lists are matched by name.
+ */
+export interface ImportBundle {
+  format: "market-dashboard-import";
+  version: 1;
+  lists: { name: string; group?: string; symbols: string[] }[];
+  stocks?: Record<string, StockMeta>;
+}
+
+export const isImportBundle = (x: unknown): x is ImportBundle =>
+  !!x && typeof x === "object" && (x as ImportBundle).format === "market-dashboard-import" && Array.isArray((x as ImportBundle).lists);
 
 function readLocal<T>(key: string): T | null {
   try {
@@ -166,6 +180,87 @@ export function useStore() {
         return { ...s, groups: rest };
       });
     },
+
+    // --- per-stock info ---
+    /** Merges fields into a stock's info; empty strings remove a field. */
+    setMeta(symbol: string, patch: Partial<StockMeta>) {
+      const sym = symbol.toUpperCase();
+      update((s) => {
+        const cur: StockMeta = { ...(s.stocks?.[sym] ?? {}) };
+        for (const [k, v] of Object.entries(patch) as [keyof StockMeta, unknown][]) {
+          if (v === "" || v == null) delete cur[k];
+          else (cur as Record<string, unknown>)[k] = v;
+        }
+        const stocks = { ...(s.stocks ?? {}) };
+        if (Object.keys(cur).length) stocks[sym] = cur;
+        else delete stocks[sym];
+        return { ...s, stocks };
+      });
+    },
+    /** Sets an own assessment (0–3), or clears it with null. */
+    setAssessment(symbol: string, key: string, value: number | null) {
+      const sym = symbol.toUpperCase();
+      update((s) => {
+        const cur = { ...(s.stocks?.[sym] ?? {}) };
+        const a = { ...(cur.assessments ?? {}) };
+        if (value == null) delete a[key];
+        else a[key] = value;
+        if (Object.keys(a).length) cur.assessments = a;
+        else delete cur.assessments;
+        return { ...s, stocks: { ...(s.stocks ?? {}), [sym]: cur } };
+      });
+    },
+    /** Swaps a ticker everywhere (all lists) and moves its info along. */
+    replaceSymbol(oldSym: string, newSym: string) {
+      const from = oldSym.toUpperCase();
+      const to = newSym.trim().toUpperCase();
+      if (!to || from === to) return;
+      update((s) => {
+        const lists = s.lists.map((l) =>
+          l.symbols.includes(from)
+            ? { ...l, symbols: [...new Set(l.symbols.map((x) => (x === from ? to : x)))] }
+            : l,
+        );
+        const stocks = { ...(s.stocks ?? {}) };
+        if (stocks[from]) {
+          stocks[to] = { ...stocks[from], ...(stocks[to] ?? {}) };
+          delete stocks[from];
+        }
+        return { ...s, lists, stocks };
+      });
+    },
+    /** Adds lists (creating categories by name) and fills in stock info without overwriting your own. */
+    importBundle(b: ImportBundle): string | undefined {
+      let firstId: string | undefined;
+      update((s) => {
+        const groups = [...s.groups];
+        const groupId = (name?: string) => {
+          if (!name) return undefined;
+          let g = groups.find((x) => x.name === name);
+          if (!g) {
+            g = { id: newId(), name: name.slice(0, 60) };
+            groups.push(g);
+          }
+          return g.id;
+        };
+        const lists = [...s.lists];
+        for (const l of b.lists) {
+          const symbols = [...new Set(l.symbols.map((x) => String(x).trim().toUpperCase()).filter(Boolean))].slice(0, 300);
+          const gid = groupId(l.group);
+          const list: Watchlist = { id: newId(), name: String(l.name).slice(0, 60) || "Imported", symbols, ...(gid ? { groupId: gid } : {}) };
+          firstId ??= list.id;
+          lists.push(list);
+        }
+        const stocks = { ...(s.stocks ?? {}) };
+        for (const [sym, meta] of Object.entries(b.stocks ?? {})) {
+          const key = sym.toUpperCase();
+          stocks[key] = { ...meta, ...(stocks[key] ?? {}) }; // your existing info wins
+        }
+        return { ...s, groups, lists, stocks };
+      });
+      return firstId;
+    },
+    setTrafficLights: (on: boolean) => update((s) => ({ ...s, settings: { ...(s.settings ?? {}), trafficLights: on } })),
 
     // --- table columns ---
     setColumns: (columns: string[] | undefined) =>

@@ -1,16 +1,18 @@
 import { useEffect, useRef, useState } from "react";
-import { COLUMNS, DEFAULT_COLUMNS, type ColumnDef } from "../columns";
+import { COLUMNS, DEFAULT_COLUMNS, normaliseColumnIds, type ColumnDef } from "../columns";
 
 interface Props {
   value?: string[];
   onChange: (ids: string[] | undefined) => void;
+  trafficLights: boolean;
+  onTrafficLights: (on: boolean) => void;
 }
 
 /** Dropdown with checkboxes: standard columns, a divider, then extra key figures. */
-export function ColumnPicker({ value, onChange }: Props) {
+export function ColumnPicker({ value, onChange, trafficLights, onTrafficLights }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const selected = new Set(value ?? DEFAULT_COLUMNS);
+  const selected = new Set(normaliseColumnIds(value) ?? DEFAULT_COLUMNS);
 
   useEffect(() => {
     if (!open) return;
@@ -81,8 +83,11 @@ export function ColumnPicker({ value, onChange }: Props) {
         <div className="picker-menu" role="dialog" aria-label="Choose columns">
           {renderTier("standard", "Standard")}
           <hr />
-          {renderTier("extra", "More key figures")}
+          {renderTier("extra", "Scores & key figures")}
           <div className="picker-foot">
+            <label title="Coloured dots like the spreadsheet's icons: green = good, yellow = in between, red = weak">
+              <input type="checkbox" checked={trafficLights} onChange={(e) => onTrafficLights(e.target.checked)} /> Traffic lights
+            </label>
             <button className="link" onClick={() => onChange(undefined)}>
               Reset to default
             </button>

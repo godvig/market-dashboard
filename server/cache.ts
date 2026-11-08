@@ -42,6 +42,14 @@ export async function cached<T>(key: string, ttlMs: number, load: () => Promise<
   return p;
 }
 
+/** Puts a value in the memory cache (e.g. from a batch request). */
+export function seed<T>(key: string, ttlMs: number, value: T) {
+  mem.set(key, { expires: Date.now() + ttlMs, value });
+}
+
+/** True when a fresh value is already in memory. */
+export const isFresh = (key: string) => (mem.get(key)?.expires ?? 0) > Date.now();
+
 /** Runs async tasks with at most `limit` in flight. */
 export async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
   const out = new Array<R>(items.length);

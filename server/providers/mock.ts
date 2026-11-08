@@ -49,9 +49,11 @@ function walk(symbol: string): Candle[] {
 
 export const mockProvider: MarketProvider = {
   name: "mock",
+  batchQuotes: true,
 
   async getQuotes(symbols) {
-    return symbols.map((symbol): Quote => {
+    // Tickers ending in ".XX" act as unknown, to exercise error handling.
+    return symbols.filter((s) => !s.endsWith(".XX")).map((symbol): Quote => {
       const h = walk(symbol);
       const last = h[h.length - 1];
       const prev = h[h.length - 2];
@@ -82,6 +84,7 @@ export const mockProvider: MarketProvider = {
   },
 
   async getHistory(symbol: string, range: HistoryRange) {
+    if (symbol.endsWith(".XX")) throw new Error(`${symbol} not found`);
     const cutoff = new Date(Date.now() - rangeToDays[range] * 86_400_000).toISOString().slice(0, 10);
     return walk(symbol).filter((c) => c.time >= cutoff);
   },
@@ -89,17 +92,57 @@ export const mockProvider: MarketProvider = {
   async getFundamentals(symbol: string): Promise<Fundamentals> {
     const r = seeded(symbol + "keyfigures");
     const pick = (lo: number, hi: number, d = 1) => Number((lo + r() * (hi - lo)).toFixed(d));
+    // A "quality" factor makes some companies consistently better, so scores spread out.
+    const q = r();
+    const g = (lo: number, hi: number) => pick(lo + q * 6, hi + q * 6);
+    const paysDividend = r() > 0.25;
     return {
       forwardPe: pick(6, 35),
+      peg: pick(0.5, 3.5, 2),
       ps: pick(0.5, 12),
       pb: pick(0.8, 15),
       evEbit: pick(6, 40),
       evEbitda: pick(4, 25),
-      roe: pick(-5, 45),
-      profitMargin: pick(-10, 35),
-      revenueGrowth: pick(-15, 40),
+      eps: pick(-2, 25, 2),
+      roe: pick(-5, 30) + q * 10,
+      roa: pick(-2, 15) + q * 5,
+      profitMargin: pick(-5, 25) + q * 8,
+      operatingMargin: pick(-5, 30) + q * 5,
+      ebitdaMargin: pick(0, 35) + q * 5,
+      fcfMargin: pick(-8, 25),
+      quickRatio: pick(0.4, 2.5, 2),
+      debtToEquity: pick(0.1, 2.8, 2),
+      equityRatio: pick(15, 70),
       netDebtEbitda: pick(-1, 4, 2),
       beta: pick(0.4, 1.9, 2),
+      revenueGrowth: g(-10, 20),
+      revenueCagr3y: g(-5, 15),
+      revenueCagr5y: g(-3, 13),
+      revenueCagr10y: g(-2, 12),
+      earningsGrowth: g(-25, 30),
+      earningsCagr3y: g(-10, 20),
+      earningsCagr5y: g(-8, 18),
+      earningsCagr10y: g(-5, 15),
+      epsGrowth: g(-25, 30),
+      epsCagr3y: g(-10, 20),
+      epsCagr5y: g(-8, 18),
+      epsCagr10y: g(-5, 15),
+      ebitdaGrowth: g(-15, 25),
+      ebitdaCagr3y: g(-8, 18),
+      ebitdaCagr5y: g(-6, 16),
+      ebitdaCagr10y: g(-4, 14),
+      operatingIncomeGrowth: g(-20, 30),
+      ...(paysDividend
+        ? {
+            dividendGrowth: g(-10, 15),
+            dividendCagr3y: g(-5, 12),
+            dividendCagr5y: g(-3, 11),
+            dividendCagr10y: g(-2, 10),
+            dividendYearsPaid: Math.round(pick(1, 30, 0)),
+            dividendYearsNoCut: Math.round(pick(0, 15, 0)),
+            dividendYearsRaised: Math.round(pick(0, 12, 0)),
+          }
+        : { dividendYield: 0, payoutRatio: 0 }),
     };
   },
 

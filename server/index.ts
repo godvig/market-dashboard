@@ -3,7 +3,7 @@ import express from "express";
 import path from "node:path";
 import { computeMetrics, emptyMetrics } from "../shared/analysis";
 import { FUNDAMENTAL_KEYS, type Fundamentals, type HistoryRange, type Quote, type WatchlistRow } from "../shared/types";
-import { cached, mapLimit } from "./cache";
+import { cached, isFresh, mapLimit, seed } from "./cache";
 import { createFx } from "./fx";
 import { createProviders } from "./providers";
 import type { MarketProvider } from "./providers/types";
@@ -16,13 +16,15 @@ const HISTORY_TTL = Number(process.env.HISTORY_TTL_HOURS ?? 12) * 3_600_000;
 const RANGES: HistoryRange[] = ["6mo", "1y", "2y", "5y"];
 const fx = createFx(process.env.BASE_CURRENCY ?? "SEK", primary.name === "mock");
 const hasFallback = fallback !== primary;
+const RISK_FREE = Number(process.env.RISK_FREE_RATE ?? 2); // percent, for the Sharpe ratio
+const MAX_SYMBOLS = 300;
 
 const parseSymbols = (raw: unknown) =>
   String(raw ?? "")
     .split(",")
     .map((s) => s.trim().toUpperCase())
     .filter(Boolean)
-    .slice(0, 100);
+    .slice(0, MAX_SYMBOLS);
 
 /**
  * Tries the primary provider, then the fallback (e.g. Yahoo for an ETF
@@ -102,10 +104,27 @@ app.put("/api/store", async (req, res) => {
   }
 });
 
+/** Fetches quotes for many symbols in a few batch requests and caches them per symbol. */
+async function prefetchQuotes(symbols: string[]) {
+  if (!primary.batchQuotes) return;
+  const missing = symbols.filter((s) => !isFresh(`quote:${s}:${primary.name}`));
+  for (let i = 0; i < missing.length; i += 50) {
+    const chunk = missing.slice(i, i + 50);
+    try {
+      for (const q of await primary.getQuotes(chunk)) {
+        if (q && Number.isFinite(q.price)) seed(`quote:${q.symbol.toUpperCase()}:${primary.name}`, QUOTE_TTL, { ...q, source: primary.name });
+      }
+    } catch {
+      /* fall back to per-symbol requests */
+    }
+  }
+}
+
 // Quote + computed metrics + key figures for each symbol; one failing symbol doesn't break the list.
 app.get("/api/watchlist", async (req, res) => {
   const symbols = parseSymbols(req.query.symbols);
-  const rows = await mapLimit(symbols, 4, async (symbol): Promise<WatchlistRow> => {
+  await prefetchQuotes(symbols);
+  const rows = await mapLimit(symbols, 6, async (symbol): Promise<WatchlistRow> => {
     try {
       const q = await quote(symbol);
       const [h, f, rate] = await Promise.all([
@@ -113,7 +132,7 @@ app.get("/api/watchlist", async (req, res) => {
         fundamentals(symbol, q),
         fx.rate(q.currency),
       ]);
-      return { quote: q, metrics: h.length ? computeMetrics(h) : emptyMetrics, fx: rate, fundamentals: f };
+      return { quote: q, metrics: h.length ? computeMetrics(h, RISK_FREE) : emptyMetrics, fx: rate, fundamentals: f };
     } catch (err) {
       const blank: Quote = { symbol, name: symbol, currency: "", price: NaN, change: NaN, changePct: NaN };
       return { quote: blank, metrics: emptyMetrics, fx: null, fundamentals: {}, error: (err as Error).message };
