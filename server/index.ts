@@ -2,9 +2,10 @@ import "dotenv/config";
 import express from "express";
 import path from "node:path";
 import { computeMetrics, emptyMetrics } from "../shared/analysis";
-import type { HistoryRange, Quote, WatchlistRow } from "../shared/types";
+import type { Fundamentals, HistoryRange, Quote, WatchlistRow } from "../shared/types";
 import { cached, mapLimit } from "./cache";
 import { createProviders } from "./providers";
+import { parseWatchlists, readWatchlists, writeWatchlists } from "./store";
 
 const { primary, fallback } = createProviders(process.env);
 const PORT = Number(process.env.PORT ?? 8787);
@@ -31,7 +32,38 @@ const quote = (symbol: string) =>
     return q;
   });
 
+// Dividend data etc. changes slowly, so it is cached as long as history.
+const fundamentals = (symbol: string): Promise<Fundamentals> => {
+  const p = primary.getFundamentals ? primary : fallback.getFundamentals ? fallback : null;
+  if (!p) return Promise.resolve({});
+  return cached(`fundamentals:${p.name}:${symbol}`, HISTORY_TTL, () => p.getFundamentals!(symbol)).catch(() => ({}));
+};
+
+/** Keeps the quote's own values and fills the gaps from fundamentals. */
+function withFundamentals(q: Quote, f: Fundamentals): Quote {
+  const out = { ...q };
+  for (const [k, v] of Object.entries(f) as [keyof Fundamentals, number | undefined][]) {
+    if (v != null && Number.isFinite(v) && (out[k] == null || !Number.isFinite(out[k]))) out[k] = v;
+  }
+  return out;
+}
+
 const app = express();
+app.use(express.json({ limit: "200kb" }));
+
+app.get("/api/watchlists", async (_req, res) => {
+  res.json(await readWatchlists());
+});
+
+app.put("/api/watchlists", async (req, res) => {
+  try {
+    const lists = parseWatchlists(req.body);
+    await writeWatchlists(lists);
+    res.json(lists);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
 
 app.get("/api/health", (_req, res) => {
   res.json({ provider: primary.name, fallback: fallback.name });
@@ -42,8 +74,12 @@ app.get("/api/watchlist", async (req, res) => {
   const symbols = parseSymbols(req.query.symbols);
   const rows = await mapLimit(symbols, 4, async (symbol): Promise<WatchlistRow> => {
     try {
-      const [q, h] = await Promise.all([quote(symbol), history(symbol, "1y").catch(() => [])]);
-      return { quote: q, metrics: h.length ? computeMetrics(h) : emptyMetrics };
+      const [q, h, f] = await Promise.all([
+        quote(symbol),
+        history(symbol, "1y").catch(() => []),
+        fundamentals(symbol),
+      ]);
+      return { quote: withFundamentals(q, f), metrics: h.length ? computeMetrics(h) : emptyMetrics };
     } catch (err) {
       const blank: Quote = { symbol, name: symbol, currency: "", price: NaN, change: NaN, changePct: NaN };
       return { quote: blank, metrics: emptyMetrics, error: (err as Error).message };

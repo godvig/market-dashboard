@@ -2,8 +2,8 @@
 // No API key, global coverage (e.g. VOLV-B.ST, ASML.AS), but unofficial:
 // Yahoo can change or throttle it without notice.
 import YahooFinance from "yahoo-finance2";
-import type { Candle, HistoryRange, Quote, SearchResult } from "../../shared/types";
-import { startDate, type MarketProvider } from "./types";
+import type { Candle, Fundamentals, HistoryRange, Quote, SearchResult } from "../../shared/types";
+import { startDate, toPct, type MarketProvider } from "./types";
 
 const yf = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
@@ -24,7 +24,8 @@ export const yahooProvider: MarketProvider = {
       volume: q.regularMarketVolume,
       marketCap: q.marketCap,
       pe: q.trailingPE,
-      dividendYield: q.trailingAnnualDividendYield != null ? q.trailingAnnualDividendYield * 100 : undefined,
+      dividendYield: toPct(q.trailingAnnualDividendYield),
+      dividendPerShare: q.trailingAnnualDividendRate,
       fiftyTwoWeekHigh: q.fiftyTwoWeekHigh,
       fiftyTwoWeekLow: q.fiftyTwoWeekLow,
     }));
@@ -42,6 +43,19 @@ export const yahooProvider: MarketProvider = {
         close: q.close!,
         volume: q.volume ?? 0,
       }));
+  },
+
+  async getFundamentals(symbol: string): Promise<Fundamentals> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const res: any = await yf.quoteSummary(symbol, { modules: ["summaryDetail"] });
+    const s = res.summaryDetail ?? {};
+    return {
+      // Forward yield if Yahoo has one, otherwise trailing.
+      dividendYield: toPct(s.dividendYield ?? s.trailingAnnualDividendYield),
+      payoutRatio: toPct(s.payoutRatio),
+      dividendPerShare: s.dividendRate ?? s.trailingAnnualDividendRate,
+      pe: s.trailingPE,
+    };
   },
 
   async search(query: string): Promise<SearchResult[]> {

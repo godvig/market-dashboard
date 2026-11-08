@@ -97,11 +97,21 @@ export function WatchlistTable({ rows, selected, onSelect, onRemove }: Props) {
         cell: (c) => fmtNum(c.getValue(), 1),
       }),
       col.accessor((r) => r.quote.dividendYield ?? null, {
-        id: "Div",
-        header: "Div",
-        meta: { title: "Trailing dividend yield" },
+        id: "Div yield",
+        header: "Div yield",
+        meta: { title: "Dividend yield (direktavkastning): annual dividend ÷ share price" },
         sortUndefined: "last",
         cell: (c) => fmtPct(c.getValue()).replace("+", ""),
+      }),
+      col.accessor((r) => r.quote.payoutRatio ?? null, {
+        id: "Payout",
+        header: "Payout",
+        meta: { title: "Payout ratio (utdelningsandel): share of earnings paid as dividends. Over 100 % = paying more than it earns" },
+        sortUndefined: "last",
+        cell: (c) => {
+          const v = c.getValue();
+          return <span className={v != null && v > 100 ? "neg" : ""}>{fmtPct(v, 0).replace("+", "")}</span>;
+        },
       }),
       col.accessor((r) => r.quote.marketCap ?? null, {
         id: "Mkt cap",

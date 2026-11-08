@@ -6,7 +6,8 @@ A stock watchlist and analysis dashboard that pulls data from free market-data A
 
 ## Features
 
-- **Sortable, filterable watchlist.** Price, day change, 1M/3M/1Y/YTD returns, volatility, max drawdown, distance from the 52-week high, price vs SMA200, RSI(14), P/E, dividend yield and market cap
+- **Named watchlists.** Create, rename (double-click the tab), duplicate and delete lists. They're saved on the server in `data/watchlists.json`, with a backup copy in the browser. Export/import as JSON
+- **Sortable, filterable table.** Price, day change, 1M/3M/1Y/YTD returns, volatility, max drawdown, distance from the 52-week high, price vs SMA200, RSI(14), P/E, dividend yield, payout ratio and market cap
 - **Detail view.** Candlestick chart (6 mo – 5 y) with SMA50/SMA200 overlays, plus key stats
 - **Ticker search** with autocomplete. The watchlist is saved in the browser
 - **Pluggable data providers.** Choose Yahoo Finance, Finnhub, Financial Modeling Prep or offline mock data with one env variable
@@ -37,7 +38,7 @@ To add another source, implement `MarketProvider` in `server/providers/` and reg
 ## Project layout
 
 ```
-server/            Express API (proxy, cache, providers)
+server/            Express API (proxy, cache, providers, watchlist storage)
   providers/       yahoo · finnhub · fmp · mock adapters
 shared/            Types + analysis functions (used by server and client)
 src/               React client (Vite, TanStack Table, lightweight-charts)
@@ -55,15 +56,19 @@ src/               React client (Vite, TanStack Table, lightweight-charts)
 
 ## Notes on the metrics
 
+- **Vol** (volatility) is how much the price swings: the annualised standard deviation of daily log returns over one year. 20 % means the price typically moves about ±20 % a year around its trend.
+- **Div yield** (direktavkastning) is the annual dividend divided by the share price. Yahoo's forward yield is used when available, otherwise the trailing yield.
+- **Payout** (utdelningsandel) is the share of earnings paid out as dividends. Above 100 % (shown in red) means the company pays more than it earns, which is usually not sustainable.
+
 - Returns use trading-day lookbacks: 21 for 1M, 63 for 3M, 126 for 6M and 252 for 1Y.
-- Volatility is the annualised standard deviation of daily log returns over one year.
 - Max drawdown is the largest peak-to-trough fall within the last year.
 - Market cap is in the listing currency, so comparing across currencies is not meaningful.
 
 ## Roadmap ideas
 
 - [ ] Currency conversion (everything in SEK) for comparable market caps
-- [ ] Multiple named watchlists and CSV export
+- [x] Multiple named watchlists with JSON export/import
+- [ ] CSV export of the table
 - [ ] Compare view: normalised performance of several tickers on one chart
 - [ ] Screener: filter rules like "RSI < 30 and above SMA200"
 - [ ] Fundamentals tab (revenue, margins, cash flow) from FMP

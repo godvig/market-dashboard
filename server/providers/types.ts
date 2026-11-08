@@ -1,4 +1,4 @@
-import type { Candle, HistoryRange, Quote, SearchResult } from "../../shared/types";
+import type { Candle, Fundamentals, HistoryRange, Quote, SearchResult } from "../../shared/types";
 
 /**
  * A market-data source. Add a new API by implementing this interface and
@@ -10,7 +10,13 @@ export interface MarketProvider {
   getQuotes(symbols: string[]): Promise<Quote[]>;
   getHistory?(symbol: string, range: HistoryRange): Promise<Candle[]>;
   search?(query: string): Promise<SearchResult[]>;
+  /** Dividend data, payout ratio etc. Used to fill gaps in the quote. */
+  getFundamentals?(symbol: string): Promise<Fundamentals>;
 }
+
+/** Converts a fraction (0.42) to percent (42), keeping undefined. */
+export const toPct = (v: unknown): number | undefined =>
+  typeof v === "number" && Number.isFinite(v) ? v * 100 : undefined;
 
 export const rangeToDays: Record<HistoryRange, number> = {
   "6mo": 183,

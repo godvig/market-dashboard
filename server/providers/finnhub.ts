@@ -38,6 +38,8 @@ export function finnhubProvider(apiKey: string): MarketProvider {
             marketCap: p.marketCapitalization != null ? p.marketCapitalization * 1e6 : undefined,
             pe: metric.peTTM ?? metric.peBasicExclExtraTTM,
             dividendYield: metric.currentDividendYieldTTM,
+            payoutRatio: metric.payoutRatioTTM ?? metric.payoutRatioAnnual,
+            dividendPerShare: metric.dividendPerShareTTM ?? metric.dividendPerShareAnnual,
             fiftyTwoWeekHigh: metric["52WeekHigh"],
             fiftyTwoWeekLow: metric["52WeekLow"],
             sector: p.finnhubIndustry,

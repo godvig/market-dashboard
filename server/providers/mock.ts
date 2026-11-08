@@ -58,6 +58,8 @@ export const mockProvider: MarketProvider = {
       const year = h.slice(-252).map((c) => c.close);
       const rand = seeded(symbol + "fundamentals");
       const [name, currency] = NAMES[symbol] ?? [`${symbol} (demo)`, "USD"];
+      const pe = 8 + rand() * 40;
+      const dividendYield = rand() * 5;
       return {
         symbol,
         name,
@@ -68,8 +70,11 @@ export const mockProvider: MarketProvider = {
         changePct: (last.close / prev.close - 1) * 100,
         volume: last.volume,
         marketCap: Math.round(1e9 * (5 + rand() * 2000)),
-        pe: 8 + rand() * 40,
-        dividendYield: rand() * 5,
+        pe,
+        dividendYield,
+        dividendPerShare: (last.close * dividendYield) / 100,
+        // payout = dividend / earnings = yield × P/E
+        payoutRatio: dividendYield * pe,
         fiftyTwoWeekHigh: Math.max(...year),
         fiftyTwoWeekLow: Math.min(...year),
       };

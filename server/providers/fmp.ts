@@ -1,7 +1,7 @@
 // Financial Modeling Prep (https://financialmodelingprep.com), "stable" API.
 // Free key: 250 requests/day, end-of-day data, mainly US listings.
-import type { Candle, HistoryRange, Quote, SearchResult } from "../../shared/types";
-import { getJson, startDate, type MarketProvider } from "./types";
+import type { Candle, Fundamentals, HistoryRange, Quote, SearchResult } from "../../shared/types";
+import { getJson, startDate, toPct, type MarketProvider } from "./types";
 
 const BASE = "https://financialmodelingprep.com/stable";
 
@@ -36,6 +36,7 @@ export function fmpProvider(apiKey: string): MarketProvider {
             marketCap: q.marketCap ?? p?.marketCap,
             pe: q.pe,
             dividendYield: p?.lastDividend && price ? (p.lastDividend / price) * 100 : undefined,
+            dividendPerShare: p?.lastDividend,
             fiftyTwoWeekHigh: q.yearHigh,
             fiftyTwoWeekLow: q.yearLow,
             sector: p?.sector,
@@ -50,6 +51,17 @@ export function fmpProvider(apiKey: string): MarketProvider {
       return rows
         .map((r) => ({ time: r.date, open: r.open, high: r.high, low: r.low, close: r.close, volume: r.volume ?? 0 }))
         .sort((a, b) => a.time.localeCompare(b.time));
+    },
+
+    async getFundamentals(symbol: string): Promise<Fundamentals> {
+      const [r] = await getJson<Row[]>(url(`/ratios-ttm?symbol=${encodeURIComponent(symbol)}`));
+      if (!r) return {};
+      return {
+        dividendYield: toPct(r.dividendYieldTTM),
+        payoutRatio: toPct(r.dividendPayoutRatioTTM ?? r.payoutRatioTTM),
+        dividendPerShare: r.dividendPerShareTTM,
+        pe: r.priceToEarningsRatioTTM ?? r.peRatioTTM,
+      };
     },
 
     async search(query): Promise<SearchResult[]> {

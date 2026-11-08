@@ -34,6 +34,8 @@ export function DetailPanel({ row, onClose }: { row: WatchlistRow; onClose: () =
     ["RSI(14)", fmtNum(m.rsi14, 0)],
     ["P/E", fmtNum(q.pe, 1)],
     ["Dividend yield", fmtPct(q.dividendYield).replace("+", "")],
+    ["Payout ratio", fmtPct(q.payoutRatio, 0).replace("+", ""), q.payoutRatio != null && q.payoutRatio > 100 ? "neg" : ""],
+    ["Dividend / share", `${fmtNum(q.dividendPerShare)} ${q.currency}`],
     ["Market cap", `${fmtBig(q.marketCap)} ${q.currency}`],
   ];
 

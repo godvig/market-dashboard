@@ -12,9 +12,25 @@ export interface Quote {
   marketCap?: number;
   pe?: number;
   dividendYield?: number; // percent, e.g. 2.4 = 2.4 %
+  payoutRatio?: number; // percent of earnings paid out as dividends
+  dividendPerShare?: number; // annual, in the listing currency
   fiftyTwoWeekHigh?: number;
   fiftyTwoWeekLow?: number;
   sector?: string;
+}
+
+/** Slow-changing data, fetched separately and cached for hours. */
+export interface Fundamentals {
+  dividendYield?: number; // percent
+  payoutRatio?: number; // percent
+  dividendPerShare?: number;
+  pe?: number;
+}
+
+export interface Watchlist {
+  id: string;
+  name: string;
+  symbols: string[];
 }
 
 export interface Candle {
