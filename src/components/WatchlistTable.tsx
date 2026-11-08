@@ -1,0 +1,196 @@
+import {
+  createColumnHelper,
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getSortedRowModel,
+  useReactTable,
+  type SortingState,
+} from "@tanstack/react-table";
+import { useMemo, useState } from "react";
+import type { WatchlistRow } from "../../shared/types";
+import { fmtBig, fmtNum, fmtPct, tone } from "../format";
+
+const col = createColumnHelper<WatchlistRow>();
+
+const pct = (header: string, get: (r: WatchlistRow) => number | null | undefined, title?: string) =>
+  col.accessor((r) => get(r) ?? null, {
+    id: header,
+    header,
+    meta: { title },
+    sortUndefined: "last",
+    sortingFn: (a, b, id) => {
+      const x = a.getValue<number | null>(id);
+      const y = b.getValue<number | null>(id);
+      if (x == null || Number.isNaN(x)) return y == null || Number.isNaN(y) ? 0 : -1;
+      if (y == null || Number.isNaN(y)) return 1;
+      return x - y;
+    },
+    cell: (c) => <span className={tone(c.getValue())}>{fmtPct(c.getValue())}</span>,
+  });
+
+interface Props {
+  rows: WatchlistRow[];
+  selected?: string;
+  onSelect: (symbol: string) => void;
+  onRemove: (symbol: string) => void;
+}
+
+export function WatchlistTable({ rows, selected, onSelect, onRemove }: Props) {
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [filter, setFilter] = useState("");
+
+  const columns = useMemo(
+    () => [
+      col.accessor((r) => r.quote.symbol, {
+        id: "Symbol",
+        header: "Symbol",
+        cell: (c) => <strong>{c.getValue()}</strong>,
+      }),
+      col.accessor((r) => r.quote.name, {
+        id: "Name",
+        header: "Name",
+        cell: (c) => (
+          <span className="name" title={c.row.original.error ?? c.getValue()}>
+            {c.row.original.error ? `⚠ ${c.row.original.error}` : c.getValue()}
+          </span>
+        ),
+      }),
+      col.accessor((r) => r.quote.price, {
+        id: "Price",
+        header: "Price",
+        cell: (c) => (
+          <>
+            {fmtNum(c.getValue())} <small>{c.row.original.quote.currency}</small>
+          </>
+        ),
+      }),
+      pct("Day", (r) => r.quote.changePct, "Change today"),
+      pct("1M", (r) => r.metrics.ret1m, "Return, last 21 trading days"),
+      pct("3M", (r) => r.metrics.ret3m),
+      pct("1Y", (r) => r.metrics.ret1y),
+      pct("YTD", (r) => r.metrics.retYtd, "Year to date"),
+      col.accessor((r) => r.metrics.volatility ?? null, {
+        id: "Vol",
+        header: "Vol",
+        meta: { title: "Annualised volatility, 1 year" },
+        sortUndefined: "last",
+        cell: (c) => fmtPct(c.getValue()).replace("+", ""),
+      }),
+      pct("Max DD", (r) => r.metrics.maxDrawdown, "Max drawdown, 1 year"),
+      pct("vs 52w high", (r) => r.metrics.fromHigh),
+      pct("vs SMA200", (r) => r.metrics.vsSma200, "Price vs 200-day moving average"),
+      col.accessor((r) => r.metrics.rsi14 ?? null, {
+        id: "RSI",
+        header: "RSI",
+        meta: { title: "RSI(14): >70 overbought, <30 oversold" },
+        sortUndefined: "last",
+        cell: (c) => {
+          const v = c.getValue();
+          return <span className={v == null ? "" : v > 70 ? "neg" : v < 30 ? "pos" : ""}>{fmtNum(v, 0)}</span>;
+        },
+      }),
+      col.accessor((r) => r.quote.pe ?? null, {
+        id: "P/E",
+        header: "P/E",
+        sortUndefined: "last",
+        cell: (c) => fmtNum(c.getValue(), 1),
+      }),
+      col.accessor((r) => r.quote.dividendYield ?? null, {
+        id: "Div",
+        header: "Div",
+        meta: { title: "Trailing dividend yield" },
+        sortUndefined: "last",
+        cell: (c) => fmtPct(c.getValue()).replace("+", ""),
+      }),
+      col.accessor((r) => r.quote.marketCap ?? null, {
+        id: "Mkt cap",
+        header: "Mkt cap",
+        meta: { title: "In the listing currency – not comparable across currencies" },
+        sortUndefined: "last",
+        cell: (c) => fmtBig(c.getValue()),
+      }),
+      col.display({
+        id: "remove",
+        header: "",
+        cell: (c) => (
+          <button
+            className="icon"
+            title="Remove"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove(c.row.original.quote.symbol);
+            }}
+          >
+            ×
+          </button>
+        ),
+      }),
+    ],
+    [onRemove],
+  );
+
+  const table = useReactTable({
+    data: rows,
+    columns,
+    state: { sorting, globalFilter: filter },
+    onSortingChange: setSorting,
+    onGlobalFilterChange: setFilter,
+    globalFilterFn: (row, _id, value: string) => {
+      const q = value.toLowerCase();
+      return row.original.quote.symbol.toLowerCase().includes(q) || row.original.quote.name.toLowerCase().includes(q);
+    },
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+  });
+
+  return (
+    <div className="card">
+      <div className="toolbar">
+        <input placeholder="Filter by symbol or name…" value={filter} onChange={(e) => setFilter(e.target.value)} />
+        <span className="muted">
+          {table.getRowModel().rows.length} of {rows.length}
+        </span>
+      </div>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            {table.getHeaderGroups().map((hg) => (
+              <tr key={hg.id}>
+                {hg.headers.map((h) => {
+                  const sorted = h.column.getIsSorted();
+                  const meta = h.column.columnDef.meta as { title?: string } | undefined;
+                  return (
+                    <th
+                      key={h.id}
+                      title={meta?.title}
+                      onClick={h.column.getCanSort() ? h.column.getToggleSortingHandler() : undefined}
+                      className={h.column.getCanSort() ? "sortable" : ""}
+                    >
+                      {flexRender(h.column.columnDef.header, h.getContext())}
+                      {sorted === "asc" ? " ▲" : sorted === "desc" ? " ▼" : ""}
+                    </th>
+                  );
+                })}
+              </tr>
+            ))}
+          </thead>
+          <tbody>
+            {table.getRowModel().rows.map((r) => (
+              <tr
+                key={r.id}
+                className={r.original.quote.symbol === selected ? "selected" : ""}
+                onClick={() => onSelect(r.original.quote.symbol)}
+              >
+                {r.getVisibleCells().map((c) => (
+                  <td key={c.id}>{flexRender(c.column.columnDef.cell, c.getContext())}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

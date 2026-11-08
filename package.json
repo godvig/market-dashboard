@@ -1,0 +1,38 @@
+{
+  "name": "market-dashboard",
+  "version": "0.1.0",
+  "description": "Stock watchlist and analysis dashboard pulling free market-data APIs (Yahoo, Finnhub, FMP).",
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c blue,green \"tsx watch server/index.ts\" \"vite\"",
+    "dev:mock": "cross-env PROVIDER=mock npm run dev",
+    "build": "vite build",
+    "start": "tsx server/index.ts",
+    "typecheck": "tsc",
+    "test": "vitest run"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@tanstack/react-table": "^8.21.3",
+    "dotenv": "^18.0.9",
+    "express": "^5.3.0",
+    "lightweight-charts": "^5.2.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "yahoo-finance2": "^4.0.6"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.2.1",
+    "concurrently": "^10.0.7",
+    "cross-env": "^10.1.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.6",
+    "vitest": "^5.1.0"
+  },
+  "private": true,
+  "type": "module"
+}
