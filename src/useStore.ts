@@ -254,7 +254,11 @@ export function useStore() {
         const stocks = { ...(s.stocks ?? {}) };
         for (const [sym, meta] of Object.entries(b.stocks ?? {})) {
           const key = sym.toUpperCase();
-          stocks[key] = { ...meta, ...(stocks[key] ?? {}) }; // your existing info wins
+          const cur = stocks[key] ?? {};
+          const merged: StockMeta = { ...meta, ...cur }; // your existing info wins…
+          // …but imported notes are added below yours rather than dropped.
+          if (meta.note && cur.note && !cur.note.includes(meta.note)) merged.note = `${cur.note}\n\n${meta.note}`;
+          stocks[key] = merged;
         }
         return { ...s, groups, lists, stocks };
       });

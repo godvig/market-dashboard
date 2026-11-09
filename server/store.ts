@@ -93,7 +93,7 @@ function parseStocks(input: unknown): Record<string, StockMeta> | undefined {
     if (!v || typeof v !== "object") continue;
     const o = v as Record<string, unknown>;
     const m: StockMeta = {};
-    for (const k of ["name", "sector", "niche", "country"] as const) {
+    for (const k of ["name", "sector", "niche", "country", "investmentType"] as const) {
       const t = str(o[k], 120);
       if (t) m[k] = t;
     }

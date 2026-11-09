@@ -30,13 +30,13 @@ describe("parseStore", () => {
     const s = parseStore({
       lists: [{ id: "a", name: "x", symbols: [] }],
       stocks: {
-        "volv-b.st": { sector: "Industri", niche: "Lantbruk & Tunga Byggmaskiner", note: "Bra bolag", assessments: { trendSector: 3, outlook: 9, "bad key!": 1 }, evil: "x" },
+        "volv-b.st": { sector: "Industri", niche: "Lantbruk & Tunga Byggmaskiner", investmentType: "Bronze horse", note: "Bra bolag", assessments: { trendSector: 3, outlook: 9, "bad key!": 1 }, evil: "x" },
         EMPTY: {},
       },
       settings: { trafficLights: false },
     });
     expect(s.stocks).toEqual({
-      "VOLV-B.ST": { sector: "Industri", niche: "Lantbruk & Tunga Byggmaskiner", note: "Bra bolag", assessments: { trendSector: 3 } },
+      "VOLV-B.ST": { sector: "Industri", niche: "Lantbruk & Tunga Byggmaskiner", investmentType: "Bronze horse", note: "Bra bolag", assessments: { trendSector: 3 } },
     });
     expect(s.settings).toEqual({ trafficLights: false });
   });

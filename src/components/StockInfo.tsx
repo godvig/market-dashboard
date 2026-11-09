@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { MANUAL_LEVELS, METRIC_BY_KEY, type ManualKey } from "../../shared/metrics";
 import type { StockMeta } from "../../shared/types";
+import { HorseIcon, KNOWN_TYPES } from "./HorseIcon";
 
 interface Props {
   symbol: string;
@@ -32,6 +33,23 @@ export function StockInfo({ symbol, meta, onChange, onAssess }: Props) {
         {field("sector", "Industri/Sektor")}
         {field("niche", "Nisch/Bransch")}
         {field("country", "Land")}
+        <label className="info-field">
+          <span>
+            Investeringstyp <HorseIcon type={meta?.investmentType} size={14} />
+          </span>
+          <input
+            key={`${symbol}-type`}
+            list="investment-types"
+            defaultValue={meta?.investmentType ?? ""}
+            placeholder="t.ex. Golden horse"
+            onBlur={(e) => e.target.value !== (meta?.investmentType ?? "") && onChange({ investmentType: e.target.value.trim() })}
+          />
+          <datalist id="investment-types">
+            {KNOWN_TYPES.map((t) => (
+              <option key={t} value={t} />
+            ))}
+          </datalist>
+        </label>
       </div>
       <label className="info-field note">
         <span>Anteckningar</span>

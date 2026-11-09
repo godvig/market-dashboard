@@ -4,6 +4,7 @@ import type { Candle, HistoryRange, StockMeta, WatchlistRow } from "../../shared
 import { api } from "../api";
 import { COLUMNS, metaOf, sourceOf, type Ctx } from "../columns";
 import { fmtBig, fmtNum, fmtPct, sameCurrency, toBase, tone } from "../format";
+import { HorseIcon } from "./HorseIcon";
 import { PriceChart } from "./PriceChart";
 import { ScorePanel } from "./ScorePanel";
 import { StockInfo } from "./StockInfo";
@@ -108,7 +109,9 @@ export function DetailPanel({ row, ctx, listName, prev, next, onBack, onNavigate
         <div className="detail-head">
           <div>
             <h2>
-              {q.symbol} <span className="muted">{q.name}</span>
+              <HorseIcon type={meta?.investmentType} size={22} />
+              {q.symbol} <span className="muted">{meta?.name ?? q.name}</span>
+              {meta?.investmentType && <span className="type-tag">{meta.investmentType}</span>}
             </h2>
             {(meta?.sector || meta?.niche || meta?.country) && (
               <div className="muted small">{[meta?.sector, meta?.niche, meta?.country].filter((x) => x && x !== "-").join(" · ")}</div>

@@ -10,6 +10,7 @@ import {
 import { useMemo, useState, type ReactNode } from "react";
 import type { WatchlistRow } from "../../shared/types";
 import { metaOf, visibleColumns, type Ctx } from "../columns";
+import { HorseIcon } from "./HorseIcon";
 
 const col = createColumnHelper<WatchlistRow>();
 
@@ -57,7 +58,8 @@ export function WatchlistTable({ rows, ctx, columnIds, toolbar, progress, onOpen
               </button>
             </span>
           ) : (
-            <span className="name" title={c.row.original.quote.name}>
+            <span className="name" title={[metaOf(c.row.original, ctx)?.investmentType, c.row.original.quote.name].filter(Boolean).join(" · ")}>
+              <HorseIcon type={metaOf(c.row.original, ctx)?.investmentType} size={16} />
               {c.getValue()}
             </span>
           ),
@@ -70,6 +72,7 @@ export function WatchlistTable({ rows, ctx, columnIds, toolbar, progress, onOpen
           meta: { title: d.title, divider: d.id === firstExtra, left: d.align === "left" },
           sortingFn: "basic",
           sortUndefined: "last",
+          sortDescFirst: !d.ascFirst,
           cell: (c) => (d.render ? d.render(c.row.original, ctx) : String(c.getValue() ?? "–")),
         }),
       ),

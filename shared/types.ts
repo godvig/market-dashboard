@@ -57,6 +57,8 @@ export interface StockMeta {
   sector?: string;
   niche?: string;
   country?: string;
+  /** Your own label, e.g. "Golden horse", "Silver horse", "Nostalgi". */
+  investmentType?: string;
   note?: string;
   /** Manual criteria (e.g. "trendSector"), 0–3 where 3 is best. */
   assessments?: Record<string, number>;

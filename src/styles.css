@@ -239,3 +239,26 @@ th.left, td.left { text-align: left; }
 .picker-foot { display: flex; justify-content: space-between; align-items: center; }
 .picker-foot label { display: flex; gap: 6px; align-items: center; font-size: 13px; cursor: pointer; }
 .picker-foot input[type="checkbox"] { width: auto; padding: 0; margin: 0; border: none; accent-color: var(--accent); }
+
+/* Investment-type horses */
+.horse { display: inline-flex; vertical-align: middle; margin-right: 6px; line-height: 0; }
+.horse svg { overflow: visible; }
+.galloping .horse-body { animation: horse-bob 0.44s ease-in-out infinite; transform-origin: 32px 30px; }
+.galloping .legs-a { animation: legs-a 0.44s steps(1) infinite; }
+.galloping .legs-b { animation: legs-b 0.44s steps(1) infinite; }
+.rocking svg { animation: horse-rock 1.8s ease-in-out infinite; transform-origin: 32px 42px; }
+@keyframes horse-bob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-2.2px) rotate(-4deg); }
+  75% { transform: translateY(-1px) rotate(3deg); }
+}
+@keyframes legs-a { 0% { opacity: 1; } 50% { opacity: 0; } }
+@keyframes legs-b { 0% { opacity: 0; } 50% { opacity: 1; } }
+@keyframes horse-rock { 0%, 100% { transform: rotate(-7deg); } 50% { transform: rotate(7deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .galloping .horse-body, .rocking svg { animation: none; }
+  .galloping .legs-a { animation: none; opacity: 1; }
+  .galloping .legs-b { animation: none; opacity: 0; }
+}
+.type-label { display: inline-flex; align-items: center; white-space: nowrap; }
+.type-tag { font-size: 12px; font-weight: 600; margin-left: 8px; padding: 2px 8px; border-radius: 99px; background: var(--bg); border: 1px solid var(--border); color: var(--muted); vertical-align: middle; }

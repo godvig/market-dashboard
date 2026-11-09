@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { MANUAL_LEVELS, METRIC_BY_KEY, metricValue, rate, type ManualKey, type MetricKey, type Rating } from "../shared/metrics";
 import { SCORECARDS, score, scoreBand, type Scorecard } from "../shared/scoring";
 import type { StockMeta, WatchlistRow } from "../shared/types";
+import { HorseIcon, investmentRank } from "./components/HorseIcon";
 import { fmtBig, fmtNum, fmtPct, sameCurrency, toBase, tone } from "./format";
 
 export interface Ctx {
@@ -23,6 +24,8 @@ export interface ColumnDef {
   value: (r: WatchlistRow, ctx: Ctx) => number | string | null;
   render?: (r: WatchlistRow, ctx: Ctx) => ReactNode;
   align?: "left";
+  /** First click sorts ascending (e.g. Golden horse first). */
+  ascFirst?: boolean;
 }
 
 const num = (v: number | null | undefined) => (typeof v === "number" && Number.isFinite(v) ? v : null);
@@ -300,6 +303,28 @@ export const COLUMNS: ColumnDef[] = [
 
   ...(Object.keys(MANUAL_LEVELS) as ManualKey[]).map((k) => metricCol(`manual.${k}`, "Own assessments")),
 
+  {
+    id: "info.investmentType",
+    label: "Type",
+    title: "Investeringstyp (Golden horse, Silver horse …). Sorts Golden → Silver → Bronze → Lucky → Stupid.",
+    tier: "extra",
+    section: "Company info",
+    defaultOn: true,
+    align: "left",
+    ascFirst: true,
+    value: (r, ctx) => investmentRank(metaOf(r, ctx)?.investmentType),
+    render: (r, ctx) => {
+      const t = metaOf(r, ctx)?.investmentType;
+      return t ? (
+        <span className="type-label">
+          <HorseIcon type={t} size={16} />
+          <span className="info-text">{t}</span>
+        </span>
+      ) : (
+        <span className="muted">–</span>
+      );
+    },
+  },
   infoCol("sector", "Sector", "Industri/Sektor"),
   infoCol("niche", "Niche", "Nisch/Bransch"),
   infoCol("country", "Country", "Land"),
