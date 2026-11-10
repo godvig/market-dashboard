@@ -2,6 +2,8 @@
 
 A stock watchlist and analysis dashboard that pulls data from free market-data APIs. Add any tickers (Stockholm, US, Europe…), sort and filter the list by returns, risk and valuation metrics, and open a candlestick chart with moving averages for each one.
 
+**[Try the demo →](https://godvig.github.io/market-dashboard/)** (made-up prices, runs entirely in your browser)
+
 ![Watchlist with scores and traffic lights](docs/screenshot.png)
 
 ![Score breakdown per criterion](docs/scores.png)
@@ -30,6 +32,10 @@ npm run dev               # web on http://localhost:5173, API on :8787
 ```
 
 Run `npm run dev:mock` for offline demo data.
+
+### Static demo
+
+`VITE_DEMO=1 npm run build` builds a version that needs no server: prices and key figures come from the same deterministic fake data as `PROVIDER=mock`, computed in the browser, and lists are saved in `localStorage`. Every push to `main` publishes it to GitHub Pages via `.github/workflows/demo.yml`.
 
 ## Scorecards
 

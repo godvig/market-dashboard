@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Ctx } from "./columns";
 import type { WatchlistRow } from "../shared/types";
-import { api } from "./api";
+import { api, IS_DEMO } from "./api";
 import { AddSymbol } from "./components/AddSymbol";
 import { ColumnPicker } from "./components/ColumnPicker";
 import { DetailPanel } from "./components/DetailPanel";
@@ -117,6 +117,13 @@ export function App() {
             {loading ? "Loading…" : "Refresh"}
           </button>
         </header>
+
+        {IS_DEMO && (
+          <p className="demo-banner">
+            <strong>Demo:</strong> all prices and key figures are made up, not real market data. Your lists are saved
+            only in this browser. <a href="https://github.com/godvig/market-dashboard">Code on GitHub</a>
+          </p>
+        )}
 
         {s.saveError && <p className="neg">Could not save to the server: {s.saveError} (kept in this browser)</p>}
         {error && <p className="neg">Could not load data: {error}</p>}

@@ -262,3 +262,6 @@ th.left, td.left { text-align: left; }
 }
 .type-label { display: inline-flex; align-items: center; white-space: nowrap; }
 .type-tag { font-size: 12px; font-weight: 600; margin-left: 8px; padding: 2px 8px; border-radius: 99px; background: var(--bg); border: 1px solid var(--border); color: var(--muted); vertical-align: middle; }
+
+.demo-banner { margin: 8px 0 0; padding: 8px 12px; border-radius: 8px; background: #fff4d6; color: #5c4400; border: 1px solid #f0d68a; font-size: 14px; }
+.demo-banner a { color: inherit; font-weight: 600; }

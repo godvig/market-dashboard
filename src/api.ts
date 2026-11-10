@@ -1,24 +1,7 @@
-import type { Candle, Health, HistoryRange, SearchResult, UserStore, WatchlistRow } from "../shared/types";
+import { demoApi } from "./demoApi";
+import { liveApi } from "./liveApi";
 
-async function get<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, init);
-  const body = await res.json();
-  if (!res.ok) throw new Error(body?.error ?? res.statusText);
-  return body as T;
-}
+/** Build with VITE_DEMO=1 to run without a server, on made-up prices. */
+export const IS_DEMO = Boolean(import.meta.env.VITE_DEMO);
 
-export const api = {
-  health: () => get<Health>("/api/health"),
-  watchlist: (symbols: string[]) =>
-    get<WatchlistRow[]>(`/api/watchlist?symbols=${encodeURIComponent(symbols.join(","))}`),
-  history: (symbol: string, range: HistoryRange) =>
-    get<Candle[]>(`/api/history/${encodeURIComponent(symbol)}?range=${range}`),
-  search: (q: string) => get<SearchResult[]>(`/api/search?q=${encodeURIComponent(q)}`),
-  getStore: () => get<UserStore | null>("/api/store"),
-  saveStore: (store: UserStore) =>
-    get<UserStore>("/api/store", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(store),
-    }),
-};
+export const api = IS_DEMO ? demoApi : liveApi;
