@@ -2,7 +2,7 @@
 // "standard" columns come first; everything in "extra" sits to the right of a divider.
 import type { ReactNode } from "react";
 import { MANUAL_LEVELS, METRIC_BY_KEY, metricValue, rate, type ManualKey, type MetricKey, type Rating } from "../shared/metrics";
-import { SCORECARDS, score, scoreBand, type Scorecard } from "../shared/scoring";
+import { SCORECARDS, score, scoreBand, type ScoreOptions, type Scorecard } from "../shared/scoring";
 import type { StockMeta, WatchlistRow } from "../shared/types";
 import { HorseIcon, investmentRank } from "./components/HorseIcon";
 import { fmtBig, fmtNum, fmtPct, sameCurrency, toBase, tone } from "./format";
@@ -11,6 +11,8 @@ export interface Ctx {
   baseCurrency: string;
   stocks?: Record<string, StockMeta>;
   trafficLights: boolean;
+  /** Smooth or stepped tiers, and the minimum coverage. */
+  scoring: ScoreOptions;
 }
 
 export interface ColumnDef {
@@ -97,12 +99,30 @@ const returnCol = (id: string, label: string, key: "ret1m" | "ret3m" | "ret6m" |
   ...opts,
 });
 
-/** Score badge: 0–100 with coverage, coloured by band. */
+const pctOf = (share: number) => `${Math.round(share * 100)} %`;
+
+/** Score badge: 0–100 with coverage, coloured by band. Greyed out when too little data backs the score. */
 export function ScoreBadge({ card, r, ctx }: { card: Scorecard; r: WatchlistRow; ctx: Ctx }) {
-  const s = score(card, sourceOf(r, ctx));
-  if (s.pct == null) return <span className="muted">–</span>;
+  const s = score(card, sourceOf(r, ctx), ctx.scoring);
+  if (s.rawPct == null) return <span className="muted">–</span>;
+  if (!s.sufficient) {
+    return (
+      <span
+        className="score thin"
+        title={`${card.name}: för lite data för en poäng. ${s.covered}/${s.total} mått hade data, vilket täcker ${pctOf(s.coverage)} av poängen (minst ${pctOf(ctx.scoring.minCoverage ?? 0.6)} krävs). På de måtten blev det ${s.rawPct}.`}
+      >
+        <span className="badge-score sb-none">–</span>
+        <small>
+          {s.covered}/{s.total}
+        </small>
+      </span>
+    );
+  }
   return (
-    <span className="score" title={`${card.name}: ${s.points} av ${s.max} möjliga poäng (${s.covered}/${s.total} mått hade data, max ${s.fullMax} med all data)`}>
+    <span
+      className="score"
+      title={`${card.name}: ${s.points} av ${s.max} möjliga poäng (${s.covered}/${s.total} mått hade data = ${pctOf(s.coverage)} av poängen, max ${s.fullMax} med all data)`}
+    >
       <span className={`badge-score sb-${scoreBand(s.pct)}`}>{s.pct}</span>
       <small>
         {s.covered}/{s.total}
@@ -114,11 +134,11 @@ export function ScoreBadge({ card, r, ctx }: { card: Scorecard; r: WatchlistRow;
 const scoreCol = (card: Scorecard, defaultOn: boolean): ColumnDef => ({
   id: `score.${card.id}`,
   label: card.name,
-  title: `${card.description} (${card.origin}). 0–100 = poäng i förhållande till möjliga poäng på de mått som hade data; siffran under är täckningen.`,
+  title: `${card.description} (${card.origin}). 0–100 = poäng i förhållande till möjliga poäng på de mått som hade data; siffran bredvid är täckningen. Vid för låg täckning visas ingen poäng.`,
   tier: "extra",
   section: "Scores",
   defaultOn,
-  value: (r, ctx) => score(card, sourceOf(r, ctx)).pct,
+  value: (r, ctx) => score(card, sourceOf(r, ctx), ctx.scoring).pct,
   render: (r, ctx) => <ScoreBadge card={card} r={r} ctx={ctx} />,
 });
 
@@ -306,7 +326,7 @@ export const COLUMNS: ColumnDef[] = [
   {
     id: "info.investmentType",
     label: "Type",
-    title: "Investeringstyp (Golden horse, Silver horse …). Sorts Golden → Silver → Bronze → Lucky → Stupid.",
+    title: "Investeringstyp (Golden horse, Silver horse …). Sorts Golden → Silver → Bronze → Lucky → Stupid → Nostalgic.",
     tier: "extra",
     section: "Company info",
     defaultOn: true,
@@ -344,10 +364,37 @@ const RENAMED: Record<string, string> = {
   ndEbitda: "netDebtEbitda",
 };
 
-/** Visible columns in registry order (unknown ids are ignored). */
+const COLUMN_BY_ID = new Map(COLUMNS.map((c) => [c.id, c]));
+
+export const normaliseColumnIds = (ids: string[] | undefined) => (ids ? [...new Set(ids.map((id) => RENAMED[id] ?? id))] : undefined);
+
+/** Visible columns in the saved order (unknown ids are ignored). */
 export function visibleColumns(ids: string[] | undefined): ColumnDef[] {
-  const set = new Set((ids ?? DEFAULT_COLUMNS).map((id) => RENAMED[id] ?? id));
-  return COLUMNS.filter((c) => set.has(c.id));
+  return (normaliseColumnIds(ids) ?? DEFAULT_COLUMNS).map((id) => COLUMN_BY_ID.get(id)).filter((c): c is ColumnDef => !!c);
 }
 
-export const normaliseColumnIds = (ids: string[] | undefined) => (ids ? ids.map((id) => RENAMED[id] ?? id) : undefined);
+/** Adds a column where it belongs by default: after the nearest visible column that precedes it in the registry. */
+export function insertColumn(order: string[], id: string): string[] {
+  if (order.includes(id)) return order;
+  const at = COLUMNS.findIndex((c) => c.id === id);
+  for (let i = at - 1; i >= 0; i--) {
+    const j = order.indexOf(COLUMNS[i].id);
+    if (j >= 0) return [...order.slice(0, j + 1), id, ...order.slice(j + 1)];
+  }
+  return [id, ...order];
+}
+
+/** Moves a column next to another one (before or after it). */
+export function moveColumn(order: string[], id: string, targetId: string | null, after: boolean): string[] {
+  if (id === targetId) return order;
+  const rest = order.filter((x) => x !== id);
+  const j = targetId == null ? -1 : rest.indexOf(targetId);
+  const at = targetId == null ? 0 : j < 0 ? rest.length : j + (after ? 1 : 0);
+  return [...rest.slice(0, at), id, ...rest.slice(at)];
+}
+
+/** Share of the rows (0–1) that have a value in a column; rows that failed to load count as missing. */
+export function columnCoverage(col: ColumnDef, rows: WatchlistRow[], ctx: Ctx): number | null {
+  if (!rows.length) return null;
+  return rows.filter((r) => !r.error && col.value(r, ctx) != null).length / rows.length;
+}

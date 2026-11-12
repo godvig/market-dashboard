@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ListGroup, StockMeta, UserStore, Watchlist } from "../shared/types";
+import { normaliseInvestmentType } from "../shared/investmentTypes";
 import { api } from "./api";
 
 const BACKUP_KEY = "market-dashboard.store";
@@ -256,6 +257,7 @@ export function useStore() {
           const key = sym.toUpperCase();
           const cur = stocks[key] ?? {};
           const merged: StockMeta = { ...meta, ...cur }; // your existing info wins…
+          if (merged.investmentType) merged.investmentType = normaliseInvestmentType(merged.investmentType);
           // …but imported notes are added below yours rather than dropped.
           if (meta.note && cur.note && !cur.note.includes(meta.note)) merged.note = `${cur.note}\n\n${meta.note}`;
           stocks[key] = merged;
@@ -265,6 +267,8 @@ export function useStore() {
       return firstId;
     },
     setTrafficLights: (on: boolean) => update((s) => ({ ...s, settings: { ...(s.settings ?? {}), trafficLights: on } })),
+    setSmoothScoring: (on: boolean) => update((s) => ({ ...s, settings: { ...(s.settings ?? {}), smoothScoring: on } })),
+    setMinCoverage: (pct: number) => update((s) => ({ ...s, settings: { ...(s.settings ?? {}), minCoverage: pct } })),
 
     // --- table columns ---
     setColumns: (columns: string[] | undefined) =>

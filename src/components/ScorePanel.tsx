@@ -10,7 +10,10 @@ interface Props {
   onAssess: (key: string, value: number | null) => void;
 }
 
-const fmtPts = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1).replace(".", ","));
+const fmtPts = (n: number) => {
+  const r = Math.round(n * 10) / 10;
+  return Number.isInteger(r) ? String(r) : r.toFixed(1).replace(".", ",");
+};
 
 /** Every scorecard for one stock, each expandable into its criteria. */
 export function ScorePanel({ row, ctx, onAssess }: Props) {
@@ -20,7 +23,7 @@ export function ScorePanel({ row, ctx, onAssess }: Props) {
   return (
     <div className="scores">
       {SCORECARDS.map((card) => {
-        const s = score(card, src);
+        const s = score(card, src, ctx.scoring);
         const isOpen = open === card.id;
         return (
           <section key={card.id} className={`score-card ${isOpen ? "open" : ""}`}>
@@ -29,7 +32,7 @@ export function ScorePanel({ row, ctx, onAssess }: Props) {
               <span className="score-name">
                 <strong>{card.name}</strong>
                 <small className="muted">
-                  {fmtPts(s.points)} av {fmtPts(s.max)} p · {s.covered}/{s.total} mått · {card.origin}
+                  {fmtPts(s.points)} av {fmtPts(s.max)} p · {s.covered}/{s.total} mått ({Math.round(s.coverage * 100)} % av poängen) · {card.origin}
                 </small>
               </span>
               <span className="caret">{isOpen ? "▾" : "▸"}</span>
@@ -37,6 +40,12 @@ export function ScorePanel({ row, ctx, onAssess }: Props) {
             {isOpen && (
               <div className="score-body">
                 <p className="muted small">{card.description}</p>
+                {s.rawPct != null && !s.sufficient && (
+                  <p className="thin-note small">
+                    För lite data för en poäng: måtten nedan täcker {Math.round(s.coverage * 100)} % av poängen, och minst{" "}
+                    {Math.round((ctx.scoring.minCoverage ?? 0.6) * 100)} % krävs. På de mått som finns blir det {s.rawPct}.
+                  </p>
+                )}
                 <table className="breakdown">
                   <thead>
                     <tr>

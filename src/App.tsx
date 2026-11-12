@@ -94,8 +94,13 @@ export function App() {
   const stockRow = stockIndex >= 0 ? ordered[stockIndex] : undefined;
   const group = store?.groups.find((g) => g.id === list?.groupId);
   const ctx: Ctx = useMemo(
-    () => ({ baseCurrency, stocks: store?.stocks, trafficLights: store?.settings?.trafficLights !== false }),
-    [baseCurrency, store?.stocks, store?.settings?.trafficLights],
+    () => ({
+      baseCurrency,
+      stocks: store?.stocks,
+      trafficLights: store?.settings?.trafficLights !== false,
+      scoring: { smooth: store?.settings?.smoothScoring !== false, minCoverage: (store?.settings?.minCoverage ?? 60) / 100 },
+    }),
+    [baseCurrency, store?.stocks, store?.settings?.trafficLights, store?.settings?.smoothScoring, store?.settings?.minCoverage],
   );
   const fixMeta = fixing ? store?.stocks?.[fixing] : undefined;
 
@@ -197,13 +202,17 @@ export function App() {
                 rows={rows}
                 ctx={ctx}
                 columnIds={store.columns}
+                onColumns={s.setColumns}
                 progress={progress}
                 toolbar={
                   <ColumnPicker
                     value={store.columns}
                     onChange={s.setColumns}
-                    trafficLights={ctx.trafficLights}
+                    rows={rows}
+                    ctx={ctx}
                     onTrafficLights={s.setTrafficLights}
+                    onSmoothScoring={s.setSmoothScoring}
+                    onMinCoverage={s.setMinCoverage}
                   />
                 }
                 onOpen={openStock}
@@ -216,8 +225,8 @@ export function App() {
 
         <footer className="muted">
           {updated && `Updated ${updated.toLocaleTimeString("sv-SE")} · `}
-          Click a row to open the stock · Esc or the list name goes back · drag lists in the sidebar · free data may be
-          delayed. Not investment advice.
+          Click a row to open the stock · drag a column header to move it · scroll on the header row to move sideways ·
+          free data may be delayed. Not investment advice.
         </footer>
       </main>
     </div>

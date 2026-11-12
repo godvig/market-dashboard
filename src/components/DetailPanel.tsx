@@ -132,7 +132,7 @@ export function DetailPanel({ row, ctx, listName, prev, next, onBack, onNavigate
           </div>
           <div className="mini-scores">
             {SCORECARDS.filter((c) => ["sundhet", "keyMetrics", "dividend", "quality"].includes(c.id)).map((c) => {
-              const s = score(c, sourceOf(row, ctx));
+              const s = score(c, sourceOf(row, ctx), ctx.scoring);
               return (
                 <button key={c.id} className="mini-score" onClick={() => setTab("scores")} title={`${c.name}: ${s.covered}/${s.total} mått`}>
                   <span className={`badge-score sb-${scoreBand(s.pct) ?? "none"}`}>{s.pct ?? "–"}</span>

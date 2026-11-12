@@ -1,18 +1,32 @@
-import { useEffect, useRef, useState } from "react";
-import { COLUMNS, DEFAULT_COLUMNS, normaliseColumnIds, type ColumnDef } from "../columns";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { WatchlistRow } from "../../shared/types";
+import { COLUMNS, DEFAULT_COLUMNS, columnCoverage, insertColumn, normaliseColumnIds, type ColumnDef, type Ctx } from "../columns";
 
 interface Props {
   value?: string[];
   onChange: (ids: string[] | undefined) => void;
-  trafficLights: boolean;
+  /** The rows on screen, to show how many of them have data for each column. */
+  rows: WatchlistRow[];
+  ctx: Ctx;
   onTrafficLights: (on: boolean) => void;
+  onSmoothScoring: (on: boolean) => void;
+  onMinCoverage: (pct: number) => void;
 }
 
+const MIN_COVERAGE_CHOICES = [0, 40, 50, 60, 75, 90];
+
 /** Dropdown with checkboxes: standard columns, a divider, then extra key figures. */
-export function ColumnPicker({ value, onChange, trafficLights, onTrafficLights }: Props) {
+export function ColumnPicker({ value, onChange, rows, ctx, onTrafficLights, onSmoothScoring, onMinCoverage }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const selected = new Set(normaliseColumnIds(value) ?? DEFAULT_COLUMNS);
+  const order = normaliseColumnIds(value) ?? DEFAULT_COLUMNS;
+  const selected = new Set(order);
+
+  // Only worked out while the menu is open: it walks every column for every row.
+  const coverage = useMemo(
+    () => (open ? new Map(COLUMNS.map((c) => [c.id, columnCoverage(c, rows, ctx)])) : new Map<string, number | null>()),
+    [open, rows, ctx],
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -26,17 +40,12 @@ export function ColumnPicker({ value, onChange, trafficLights, onTrafficLights }
     };
   }, [open]);
 
-  const toggle = (id: string) => {
-    const next = new Set(selected);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    onChange(COLUMNS.filter((c) => next.has(c.id)).map((c) => c.id));
-  };
+  // Hiding and showing keeps the order you have dragged the columns into.
+  const toggle = (id: string) => onChange(selected.has(id) ? order.filter((x) => x !== id) : insertColumn(order, id));
 
   const setTier = (tier: ColumnDef["tier"], on: boolean) => {
-    const next = new Set(selected);
-    for (const c of COLUMNS) if (c.tier === tier) on ? next.add(c.id) : next.delete(c.id);
-    onChange(COLUMNS.filter((c) => next.has(c.id)).map((c) => c.id));
+    const ids = COLUMNS.filter((c) => c.tier === tier).map((c) => c.id);
+    onChange(on ? ids.reduce(insertColumn, order) : order.filter((id) => !ids.includes(id)));
   };
 
   const renderTier = (tier: ColumnDef["tier"], title: string) => {
@@ -61,33 +70,62 @@ export function ColumnPicker({ value, onChange, trafficLights, onTrafficLights }
             <legend>{s}</legend>
             {cols
               .filter((c) => c.section === s)
-              .map((c) => (
-                <label key={c.id} title={c.title}>
-                  <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)} /> {c.label}
-                </label>
-              ))}
+              .map((c) => {
+                const cov = coverage.get(c.id);
+                return (
+                  <label key={c.id} title={c.title}>
+                    <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)} />
+                    <span className="picker-label">{c.label}</span>
+                    {cov != null && (
+                      <span
+                        className={`cov ${cov < 0.5 ? "cov-low" : cov < 0.9 ? "cov-mid" : ""}`}
+                        title={`${Math.round(cov * rows.length)} of ${rows.length} stocks in this list have a value`}
+                      >
+                        {Math.round(cov * 100)}
+                      </span>
+                    )}
+                  </label>
+                );
+              })}
           </fieldset>
         ))}
       </div>
     );
   };
 
-  const count = COLUMNS.filter((c) => selected.has(c.id)).length;
-
   return (
     <div className="picker" ref={ref}>
       <button onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-        Columns ({count}) ▾
+        Columns ({order.length}) ▾
       </button>
       {open && (
         <div className="picker-menu" role="dialog" aria-label="Choose columns">
+          <p className="picker-hint muted">
+            The number after each name is the share of this list (%) that has data for it. Drag a column header in the table to move it.
+          </p>
           {renderTier("standard", "Standard")}
           <hr />
           {renderTier("extra", "Scores & key figures")}
-          <div className="picker-foot">
+          <div className="picker-settings">
             <label title="Coloured dots like the spreadsheet's icons: green = good, yellow = in between, red = weak">
-              <input type="checkbox" checked={trafficLights} onChange={(e) => onTrafficLights(e.target.checked)} /> Traffic lights
+              <input type="checkbox" checked={ctx.trafficLights} onChange={(e) => onTrafficLights(e.target.checked)} /> Traffic lights
             </label>
+            <label title="On: points are blended between the tiers, so P/E 14.9 and 15.1 score almost the same. Off: the hard steps from the spreadsheet.">
+              <input type="checkbox" checked={ctx.scoring.smooth !== false} onChange={(e) => onSmoothScoring(e.target.checked)} /> Smooth scores
+            </label>
+            <label title="A score is only shown when at least this share of the scorecard's points has data. Below it the badge is greyed out.">
+              Min. data for a score
+              <select value={Math.round((ctx.scoring.minCoverage ?? 0.6) * 100)} onChange={(e) => onMinCoverage(Number(e.target.value))}>
+                {MIN_COVERAGE_CHOICES.map((p) => (
+                  <option key={p} value={p}>
+                    {p === 0 ? "Off" : `${p} %`}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="picker-foot">
+            <span />
             <button className="link" onClick={() => onChange(undefined)}>
               Reset to default
             </button>

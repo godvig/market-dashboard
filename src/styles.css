@@ -255,7 +255,19 @@ th.left, td.left { text-align: left; }
 @keyframes legs-a { 0% { opacity: 1; } 50% { opacity: 0; } }
 @keyframes legs-b { 0% { opacity: 0; } 50% { opacity: 1; } }
 @keyframes horse-rock { 0%, 100% { transform: rotate(-7deg); } 50% { transform: rotate(7deg); } }
+/* Stupid horse runs the wrong way. */
+.horse.reverse svg { transform: scaleX(-1); }
+/* Lucky horse: the coat cycles through the rainbow while stars twinkle around it. */
+.sparkling .horse-coat { animation: horse-shimmer 3.2s linear infinite; }
+.sparkling .sparkle { animation: horse-twinkle 1.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes horse-shimmer { from { filter: hue-rotate(0deg) saturate(1.25); } to { filter: hue-rotate(360deg) saturate(1.25); } }
+@keyframes horse-twinkle {
+  0%, 100% { transform: scale(0.15) rotate(0deg); opacity: 0; }
+  50% { transform: scale(1) rotate(45deg); opacity: 1; }
+}
 @media (prefers-reduced-motion: reduce) {
+  .sparkling .horse-coat { animation: none; }
+  .sparkling .sparkle { animation: none; opacity: .9; }
   .galloping .horse-body, .rocking svg { animation: none; }
   .galloping .legs-a { animation: none; opacity: 1; }
   .galloping .legs-b { animation: none; opacity: 0; }
@@ -265,3 +277,33 @@ th.left, td.left { text-align: left; }
 
 .demo-banner { margin: 8px 0 0; padding: 8px 12px; border-radius: 8px; background: #fff4d6; color: #5c4400; border: 1px solid #f0d68a; font-size: 14px; }
 .demo-banner a { color: inherit; font-weight: 600; }
+/* Table: wrapping headers, locked first columns, draggable columns */
+th { white-space: normal; vertical-align: bottom; line-height: 1.25; }
+th .th-label { display: inline-block; max-width: 124px; overflow-wrap: break-word; }
+th.left .th-label, th.locked .th-label { max-width: none; }
+th .th-cov { display: block; font-size: 10px; font-weight: 500; color: var(--tl-bad); white-space: nowrap; }
+th.movable { cursor: grab; }
+th.movable:active { cursor: grabbing; }
+th.dragging { opacity: .4; }
+th.drop-before { box-shadow: inset 3px 0 0 var(--accent); }
+th.drop-after { box-shadow: inset -3px 0 0 var(--accent); }
+
+th.locked, td.locked { position: sticky; z-index: 2; background: var(--card); }
+th.locked { z-index: 3; }
+.locked-symbol { left: 0; width: 112px; min-width: 112px; max-width: 112px; overflow: hidden; text-overflow: ellipsis; }
+.locked-name { left: 112px; box-shadow: 6px 0 6px -6px rgba(0, 0, 0, .18); }
+th.locked-name.drop-after { box-shadow: inset -3px 0 0 var(--accent); }
+tbody tr:hover td.locked { background: var(--row-hover); }
+
+/* Scores backed by too little data */
+.score.thin { opacity: .75; }
+.thin-note { color: var(--tl-bad); margin: 0 0 8px; }
+
+/* Column picker: coverage numbers and scoring settings */
+.picker-hint { font-size: 12px; margin: 0 0 8px; white-space: normal; }
+.picker-label { overflow: hidden; text-overflow: ellipsis; }
+.picker .cov { margin-left: auto; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.picker .cov-mid { color: #b27a00; }
+.picker .cov-low { color: var(--tl-bad); font-weight: 600; }
+.picker-settings { border-top: 1px solid var(--border); margin-top: 8px; padding-top: 8px; display: grid; gap: 4px; font-size: 13px; }
+.picker-settings select { font: inherit; font-size: 12px; margin-left: auto; padding: 2px 4px; border-radius: 6px; border: 1px solid var(--border); background: var(--card); color: var(--text); }

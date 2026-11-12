@@ -2,7 +2,7 @@
 // (Microsoft row, sheet "Utd.poäng & Sundhetspoäng").
 import { describe, expect, it } from "vitest";
 import { emptyMetrics } from "./analysis";
-import { SCORECARD_BY_ID, score } from "./scoring";
+import { SCORECARD_BY_ID, score, scoreCriterion, type Criterion } from "./scoring";
 import type { Fundamentals, Metrics } from "./types";
 
 // Spreadsheet fractions converted to percent.
@@ -21,28 +21,30 @@ const src = (f: Fundamentals, m: Partial<Metrics> = {}, assessments?: Record<str
   meta: assessments ? { assessments } : undefined,
 });
 const card = (id: string) => SCORECARD_BY_ID.get(id)!;
+/** The spreadsheet's own behaviour: hard steps, and a score however little data there is. */
+const EXCEL = { smooth: false, minCoverage: 0 };
 
 describe("presets match the spreadsheet", () => {
   it("Kvalitet & värdering = POÄNG (3-2-1-0) = 17", () => {
-    expect(score(card("quality"), src(msft)).points).toBe(17);
+    expect(score(card("quality"), src(msft), EXCEL).points).toBe(17);
   });
   it("Tillväxt = POÄNG = 49", () => {
-    expect(score(card("growth"), src(msft)).points).toBe(49);
+    expect(score(card("growth"), src(msft), EXCEL).points).toBe(49);
   });
   it("Tillväxt (graderad) = POÄNG2 = 54", () => {
-    expect(score(card("growthGraded"), src(msft)).points).toBe(54);
+    expect(score(card("growthGraded"), src(msft), EXCEL).points).toBe(54);
   });
   it("Utdelningspoäng (tillväxt) = 23", () => {
-    expect(score(card("divGrowth"), src(msft)).points).toBe(23);
+    expect(score(card("divGrowth"), src(msft), EXCEL).points).toBe(23);
   });
   it("Utdelning = 18 (Excel shows 15 because of the AN/AN2 typo that skipped 10-year dividend growth)", () => {
-    expect(score(card("dividend"), src(msft)).points).toBe(18);
+    expect(score(card("dividend"), src(msft), EXCEL).points).toBe(18);
   });
 });
 
 describe("engine", () => {
   it("leaves out missing values and reports coverage", () => {
-    const r = score(card("quality"), src({ pe: 9, roe: 25 }));
+    const r = score(card("quality"), src({ pe: 9, roe: 25 }), EXCEL);
     expect(r.points).toBe(6);
     expect(r.max).toBe(6);
     expect(r.pct).toBe(100);
@@ -51,20 +53,20 @@ describe("engine", () => {
   });
 
   it("scores losses and negative equity as 0, not as the best tier", () => {
-    const r = score(card("quality"), src({ pe: -5, debtToEquity: -4.07 }));
+    const r = score(card("quality"), src({ pe: -5, debtToEquity: -4.07 }), EXCEL);
     expect(r.points).toBe(0);
   });
 
   it("applies Sundhet weights: same data, different profiles", () => {
     const f = { roe: 25, pe: 12 };
-    const mine = score(card("sundhet"), src(f));
-    const ai = score(card("sundhetAi"), src(f));
+    const mine = score(card("sundhet"), src(f), EXCEL);
+    const ai = score(card("sundhetAi"), src(f), EXCEL);
     expect(mine.points).toBe(1 + 3); // ROE weight 1, P/E weight 3
     expect(ai.points).toBe(3 + 2); // ROE weight 3, P/E weight 2
   });
 
   it("uses computed metrics and own assessments", () => {
-    const r = score(card("sundhetAi"), src({}, { volatility: 8, sharpe: 1.2 }, { trendSector: 3, trendIndustry: 2 }));
+    const r = score(card("sundhetAi"), src({}, { volatility: 8, sharpe: 1.2 }, { trendSector: 3, trendIndustry: 2 }), EXCEL);
     // vol <10 → 1×1, sharpe 1–1.5 → ½×2, trend sector strong → 1, industry not strong → 0
     expect(r.points).toBe(3);
     expect(r.covered).toBe(4);
@@ -72,11 +74,123 @@ describe("engine", () => {
 
   it("maps graded scores with minus points onto 0–100", () => {
     const shrinking = Object.fromEntries(Object.keys(msft).filter((k) => /Growth|Cagr/.test(k)).map((k) => [k, -10]));
-    expect(score(card("growthGraded"), src(shrinking)).pct).toBe(0);
+    expect(score(card("growthGraded"), src(shrinking), EXCEL).pct).toBe(0);
   });
 
   it("Key Metrics quantifies qualitative tiers 1–5", () => {
-    const r = score(card("keyMetrics"), src({ fcfMargin: 12, revenueGrowth: -8, dividendYield: 0 }));
+    const r = score(card("keyMetrics"), src({ fcfMargin: 12, revenueGrowth: -8, dividendYield: 0 }), EXCEL);
     expect(r.details.filter((d) => d.points != null).map((d) => d.points)).toEqual([5, 1, 1]);
+  });
+});
+
+describe("smooth scoring", () => {
+  const crit = (cardId: string, id: string): Criterion => card(cardId).criteria.find((c) => c.id === id)!;
+  const pts = (c: Criterion, v: number, smooth = true) => scoreCriterion(c, v, smooth).points!;
+
+  it("removes the cliff: P/E 14.9 and 15.1 score almost the same", () => {
+    const pe = crit("quality", "pe"); // ≤10 → 3, ≤15 → 2, ≤20 → 1
+    expect(pts(pe, 14.9, false) - pts(pe, 15.1, false)).toBe(1);
+    expect(pts(pe, 14.9) - pts(pe, 15.1)).toBeLessThan(0.05);
+    expect(pts(pe, 15)).toBeCloseTo(1.5, 5); // on the edge: halfway between the tiers
+  });
+
+  it("gives the spreadsheet's points in the middle of a tier", () => {
+    const pe = crit("quality", "pe");
+    expect(pts(pe, 12.5)).toBeCloseTo(2, 5);
+    expect(pts(pe, 17.5)).toBeCloseTo(1, 5);
+    expect(pts(pe, 5)).toBe(3);
+    expect(pts(pe, 40)).toBe(0);
+  });
+
+  it("never rises when the value gets worse (monotone)", () => {
+    for (const [cardId, id, from, to] of [["quality", "pe", 0, 40], ["keyMetrics", "de", 0, 4], ["dividend", "pe", 0, 40]] as const) {
+      const c = crit(cardId, id);
+      for (let v = from, prev = Infinity; v <= to; v += 0.1) {
+        const p = pts(c, v);
+        expect(p).toBeLessThanOrEqual(prev + 1e-9);
+        prev = p;
+      }
+    }
+    const roe = crit("sundhet", "roe");
+    for (let v = -10, prev = -Infinity; v <= 40; v += 0.1) {
+      const p = pts(roe, v);
+      expect(p).toBeGreaterThanOrEqual(prev - 1e-9);
+      prev = p;
+    }
+  });
+
+  it("stays within the tier range", () => {
+    for (const c of [...card("sundhet").criteria, ...card("keyMetrics").criteria, ...card("growthGraded").criteria]) {
+      const all = c.tiers.map((t) => t.points);
+      for (let v = -50; v <= 100; v += 0.37) {
+        const p = scoreCriterion({ ...c, weight: 1 }, v).points!;
+        expect(p).toBeGreaterThanOrEqual(Math.min(...all) - 1e-9);
+        expect(p).toBeLessThanOrEqual(Math.max(...all) + 1e-9);
+      }
+    }
+  });
+
+  it("keeps hard edges where a blend would be wrong", () => {
+    // A loss is not "almost a low P/E".
+    expect(pts(crit("quality", "pe"), -0.1)).toBe(0);
+    expect(pts(crit("quality", "pe"), 0.1)).toBe(3);
+    // No dividend is not "almost a small dividend".
+    expect(pts(crit("keyMetrics", "da"), 0)).toBe(1);
+    expect(pts(crit("quality", "ua"), 4.9)).toBe(0);
+    expect(pts(crit("quality", "ua"), 5)).toBe(3);
+  });
+
+  it("handles single thresholds: half the points on the line, full a quarter beyond it", () => {
+    const g = crit("growth", "rev3"); // ≥10 % over 10 years → 4 points
+    expect(pts(g, 10)).toBeCloseTo(2, 5);
+    expect(pts(g, 12.5)).toBe(4);
+    expect(pts(g, 7.5)).toBe(0);
+  });
+
+  it("does not smooth own assessments", () => {
+    const t = crit("sundhet", "trendS"); // "Stark positiv" (3) → 1
+    expect(pts(t, 3)).toBe(1);
+    expect(pts(t, 2)).toBe(0);
+    for (const v of [0, 1, 2, 3]) expect(pts(crit("own", "overall"), v)).toBe(v);
+  });
+
+  it("smooth and stepped scores agree on average over a tier ladder", () => {
+    const roe = crit("keyMetrics", "roe");
+    let a = 0, b = 0, n = 0;
+    for (let v = 2.5; v <= 22.5; v += 0.01, n++) {
+      a += pts(roe, v);
+      b += pts(roe, v, false);
+    }
+    expect(Math.abs(a - b) / n).toBeLessThan(0.01);
+  });
+});
+
+describe("minimum coverage", () => {
+  it("shows no score when too little data backs it", () => {
+    const r = score(card("quality"), src({ pe: 5, roe: 30 })); // 6 of 27 points covered
+    expect(r.rawPct).toBe(100);
+    expect(r.coverage).toBeCloseTo(6 / 27, 5);
+    expect(r.sufficient).toBe(false);
+    expect(r.pct).toBeNull();
+  });
+
+  it("shows the score once coverage reaches the minimum", () => {
+    const f = { profitMargin: 12, pe: 12, pb: 2.5, peg: 1.2, roe: 17, fcfMargin: 3 }; // 18 of 27 = 67 %
+    const r = score(card("quality"), src(f));
+    expect(r.coverage).toBeCloseTo(18 / 27, 5);
+    expect(r.pct).not.toBeNull();
+    expect(score(card("quality"), src(f), { minCoverage: 0.75 }).pct).toBeNull();
+  });
+
+  it("weighs coverage by points, not by number of criteria", () => {
+    // Sundhet: P/E, equity ratio and profit margin weigh 3 each of 31 in total.
+    const r = score(card("sundhet"), src({ pe: 12, equityRatio: 55, profitMargin: 18 }));
+    expect([r.covered, r.total]).toEqual([3, 18]);
+    expect(r.coverage).toBeCloseTo(9 / 31, 5);
+  });
+
+  it("counts the whole range for scales with minus points", () => {
+    const r = score(card("growthGraded"), src({ revenueGrowth: 12 }));
+    expect(r.coverage).toBeCloseTo(3 / 90, 5); // 2 − (−1) of a total span of 5 × (3 + 4 + 5 + 6)
   });
 });

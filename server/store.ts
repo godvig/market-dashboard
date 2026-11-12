@@ -3,7 +3,8 @@
 // on this machine. Older data/watchlists.json files are migrated.
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { ListGroup, StockMeta, UserStore, Watchlist } from "../shared/types";
+import { normaliseInvestmentType } from "../shared/investmentTypes";
+import type { ListGroup, StockMeta, UserSettings, UserStore, Watchlist } from "../shared/types";
 
 const DIR = path.resolve(process.env.DATA_DIR ?? "data");
 const FILE = path.join(DIR, "store.json");
@@ -70,10 +71,7 @@ export function parseStore(input: unknown): UserStore {
     : undefined;
 
   const stocks = parseStocks(raw.stocks);
-  const settings =
-    raw.settings && typeof raw.settings === "object" && typeof (raw.settings as Record<string, unknown>).trafficLights === "boolean"
-      ? { trafficLights: (raw.settings as { trafficLights: boolean }).trafficLights }
-      : undefined;
+  const settings = parseSettings(raw.settings);
 
   return {
     version: 2,
@@ -83,6 +81,16 @@ export function parseStore(input: unknown): UserStore {
     ...(stocks ? { stocks } : {}),
     ...(settings ? { settings } : {}),
   };
+}
+
+function parseSettings(input: unknown): UserSettings | undefined {
+  if (!input || typeof input !== "object") return undefined;
+  const o = input as Record<string, unknown>;
+  const out: UserSettings = {};
+  if (typeof o.trafficLights === "boolean") out.trafficLights = o.trafficLights;
+  if (typeof o.smoothScoring === "boolean") out.smoothScoring = o.smoothScoring;
+  if (typeof o.minCoverage === "number" && Number.isFinite(o.minCoverage)) out.minCoverage = Math.min(100, Math.max(0, Math.round(o.minCoverage)));
+  return Object.keys(out).length ? out : undefined;
 }
 
 /** Per-ticker notes and assessments; unknown fields are dropped, text is length-limited. */
@@ -95,7 +103,7 @@ function parseStocks(input: unknown): Record<string, StockMeta> | undefined {
     const m: StockMeta = {};
     for (const k of ["name", "sector", "niche", "country", "investmentType"] as const) {
       const t = str(o[k], 120);
-      if (t) m[k] = t;
+      if (t) m[k] = k === "investmentType" ? normaliseInvestmentType(t) : t;
     }
     const note = typeof o.note === "string" ? o.note.slice(0, 20_000) : "";
     if (note.trim()) m.note = note;

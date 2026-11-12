@@ -57,7 +57,7 @@ export interface StockMeta {
   sector?: string;
   niche?: string;
   country?: string;
-  /** Your own label, e.g. "Golden horse", "Silver horse", "Nostalgi". */
+  /** Your own label, e.g. "Golden horse", "Silver horse", "Nostalgic horse". */
   investmentType?: string;
   note?: string;
   /** Manual criteria (e.g. "trendSector"), 0–3 where 3 is best. */
@@ -78,6 +78,14 @@ export interface ListGroup {
   collapsed?: boolean;
 }
 
+export interface UserSettings {
+  trafficLights?: boolean;
+  /** Interpolate scores between tiers (default) instead of the spreadsheet's hard steps. */
+  smoothScoring?: boolean;
+  /** Percent (0–100) of a scorecard's points that must have data before a score is shown. Default 60. */
+  minCoverage?: number;
+}
+
 /** Everything the user saves: categories, lists (in sidebar order) and table columns. */
 export interface UserStore {
   version: 2;
@@ -87,7 +95,7 @@ export interface UserStore {
   columns?: string[];
   /** Per-ticker data the user keeps (sector, notes, assessments). Never sent anywhere but the local server. */
   stocks?: Record<string, StockMeta>;
-  settings?: { trafficLights?: boolean };
+  settings?: UserSettings;
 }
 
 export interface Candle {
