@@ -2,6 +2,12 @@
 
 Notable changes, newest first.
 
+## 2026-11-13 – Continuous integration
+
+- **CI on every push and pull request** (`.github/workflows/ci.yml`): lint, typecheck, tests and a build of both the app and the demo. Badge in the README.
+- **Lint with oxlint** (`npm run lint`, rules in `.oxlintrc.json`). ESLint's TypeScript plugin does not support TypeScript 7 yet; oxlint doesn't depend on the TypeScript version. Real errors fail the build; React style hints (state set in effects, refs read during render) are warnings to clean up later.
+- A few one-line comma expressions in the CSV parser and import matching rewritten as plain blocks.
+
 ## 2026-11-13 – Investment type picker
 
 - **Investment type is a dropdown** on *Mina anteckningar*: the six horses, then your own types already used on other stocks, then *Egen typ…* to type a new one (Enter saves, Esc cancels). A type containing "horse" gets the plain horse icon.

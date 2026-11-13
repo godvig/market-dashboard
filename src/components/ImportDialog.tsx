@@ -402,7 +402,10 @@ function StockSearch({ initial, onPick, onCancel }: { initial: string; onPick: (
         value={q}
         onChange={(e) => setQ(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === "Escape") e.stopPropagation(), onCancel();
+          if (e.key === "Escape") {
+            e.stopPropagation();
+            onCancel();
+          }
           if (e.key === "Enter" && q.trim()) onPick(hits?.[0]?.symbol ?? q.trim());
         }}
         placeholder="Name, ISIN or ticker"

@@ -8,6 +8,7 @@
     "build": "vite build",
     "start": "tsx server/index.ts",
     "typecheck": "tsc",
+    "lint": "oxlint",
     "test": "vitest run",
     "check": "tsx server/check.ts"
   },
@@ -30,6 +31,7 @@
     "@vitejs/plugin-react": "^6.2.1",
     "concurrently": "^10.0.7",
     "cross-env": "^10.1.0",
+    "oxlint": "^1.93.0",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.6",

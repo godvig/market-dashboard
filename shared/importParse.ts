@@ -30,11 +30,17 @@ export function parseCsv(text: string, delimiter = detectDelimiter(text)): strin
   for (let i = 0; i < src.length; i++) {
     const ch = src[i];
     if (quoted) {
-      if (ch === '"' && src[i + 1] === '"') (field += '"'), i++;
+      if (ch === '"' && src[i + 1] === '"') {
+        field += '"';
+        i++;
+      }
       else if (ch === '"') quoted = false;
       else field += ch;
     } else if (ch === '"' && field === "") quoted = true;
-    else if (ch === delimiter) row.push(field), (field = "");
+    else if (ch === delimiter) {
+      row.push(field);
+      field = "";
+    }
     else if (ch === "\n" || ch === "\r") {
       if (ch === "\r" && src[i + 1] === "\n") i++;
       row.push(field);
@@ -74,7 +80,10 @@ export function parseNumber(cell: Cell): ParsedNumber | null {
   const percent = s.includes("%");
   s = s.replace(/%/g, "").replace(/[\s   ']/g, "").replace(/[−–]/g, "-");
   let negative = false;
-  if (/^\(.*\)$/.test(s)) (negative = true), (s = s.slice(1, -1));
+  if (/^\(.*\)$/.test(s)) {
+    negative = true;
+    s = s.slice(1, -1);
+  }
   s = s.replace(/^[^\d+\-.,]+|[^\d.,]+$/g, ""); // currency or unit text around the number
   const comma = s.lastIndexOf(",");
   const dot = s.lastIndexOf(".");

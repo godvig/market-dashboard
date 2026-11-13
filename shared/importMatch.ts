@@ -129,12 +129,18 @@ export function matchRows(rows: ImportRow[], known: KnownStock[], suffix = ".ST"
   // Pass 1: tickers. Pass 2: exact names. Pass 3: fuzzy names. Earlier passes claim stocks first.
   for (const m of results) {
     const hit = m.row.ticker && tickerCandidates(m.row.ticker, suffix).find((c) => bySymbol.has(c) && !taken.has(c));
-    if (hit) Object.assign(m, { symbol: hit, how: "ticker" }), taken.add(hit);
+    if (hit) {
+      Object.assign(m, { symbol: hit, how: "ticker" });
+      taken.add(hit);
+    }
   }
   for (const m of results) {
     if (m.symbol || !m.row.name) continue;
     const hit = byName.get(normaliseName(m.row.name))?.find((k) => !taken.has(k.symbol));
-    if (hit) Object.assign(m, { symbol: hit.symbol, how: "name" }), taken.add(hit.symbol);
+    if (hit) {
+      Object.assign(m, { symbol: hit.symbol, how: "name" });
+      taken.add(hit.symbol);
+    }
   }
   for (const m of results) {
     if (m.symbol || !m.row.name) continue;

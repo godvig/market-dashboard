@@ -1,5 +1,7 @@
 # Market Screener
 
+[![CI](https://github.com/godvig/market-screener/actions/workflows/ci.yml/badge.svg)](https://github.com/godvig/market-screener/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A stock watchlist and analysis dashboard that pulls data from free market-data APIs. Add any tickers (Stockholm, US, Europe…), sort and filter the list by returns, risk and valuation metrics, and open a candlestick chart with moving averages for each one.
 
 **[Try the demo →](https://screener.godvig.com/)** (made-up prices, runs entirely in your browser)
@@ -194,9 +196,12 @@ src/               React client (Vite, TanStack Table, lightweight-charts)
 |---|---|
 | `npm run dev` | API + Vite dev server with hot reload |
 | `npm run dev:mock` | Same, with offline mock data |
-| `npm test` | Unit tests for the analysis functions |
+| `npm test` | Unit tests (analysis, scoring, import, store) |
 | `npm run typecheck` | TypeScript check |
+| `npm run lint` | Lint with oxlint |
 | `npm run build && npm start` | Production build served by the API on :8787 |
+
+CI runs lint, typecheck, tests and both builds on every push and pull request.
 
 ## Notes on the metrics
 
