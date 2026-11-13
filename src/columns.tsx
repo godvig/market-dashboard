@@ -14,6 +14,8 @@ export interface Ctx {
   trafficLights: boolean;
   /** Smooth or stepped tiers, and the minimum coverage. */
   scoring: ScoreOptions;
+  /** Every scorecard available: presets, then the user's own. */
+  scorecards: Scorecard[];
 }
 
 export interface ColumnDef {
@@ -171,7 +173,7 @@ const infoCol = (id: "sector" | "niche" | "country", label: string, sv: string):
 
 const DEFAULT_SCORES = new Set(["sundhet", "keyMetrics", "dividend"]);
 
-export const COLUMNS: ColumnDef[] = [
+const BEFORE_SCORES: ColumnDef[] = [
   // ---- standard ----
   {
     id: "price",
@@ -257,8 +259,9 @@ export const COLUMNS: ColumnDef[] = [
   },
   metricCol("sharpe", "Risk & technicals", { tier: "standard" }),
 
-  // ---- extra (right of the divider) ----
-  ...SCORECARDS.map((c) => scoreCol(c, DEFAULT_SCORES.has(c.id))),
+];
+
+const AFTER_SCORES: ColumnDef[] = [
 
   // Key Metrics (Allmän snurra) + dividend basics
   metricCol("profitMargin", "Key Metrics"),
@@ -367,6 +370,25 @@ export const COLUMNS: ColumnDef[] = [
   infoCol("country", "Country", "Land"),
 ];
 
+/** The column registry for a set of custom scorecards; the result is cached per array. */
+const registryCache = new WeakMap<Scorecard[], ColumnDef[]>();
+const presetColumns = SCORECARDS.map((c) => scoreCol(c, DEFAULT_SCORES.has(c.id)));
+export function columnsFor(custom?: Scorecard[]): ColumnDef[] {
+  if (!custom?.length) return COLUMNS;
+  let cols = registryCache.get(custom);
+  if (!cols) {
+    cols = [...BEFORE_SCORES, ...presetColumns, ...custom.map((c) => scoreCol(c, false)), ...AFTER_SCORES];
+    registryCache.set(custom, cols);
+  }
+  return cols;
+}
+
+/** Custom scorecards in a scorecard list (everything after the presets). */
+export const customOf = (cards: Scorecard[] | undefined) => cards?.filter((c) => !SCORECARD_IDS.has(c.id));
+const SCORECARD_IDS = new Set(SCORECARDS.map((c) => c.id));
+
+export const COLUMNS: ColumnDef[] = [...BEFORE_SCORES, ...presetColumns, ...AFTER_SCORES];
+
 export const DEFAULT_COLUMNS = COLUMNS.filter((c) => c.defaultOn).map((c) => c.id);
 
 /** Old column ids from earlier versions → current ids. */
@@ -381,21 +403,28 @@ const RENAMED: Record<string, string> = {
   ndEbitda: "netDebtEbitda",
 };
 
-const COLUMN_BY_ID = new Map(COLUMNS.map((c) => [c.id, c]));
+const byIdCache = new WeakMap<ColumnDef[], Map<string, ColumnDef>>();
+function byId(cols: ColumnDef[]) {
+  let m = byIdCache.get(cols);
+  if (!m) byIdCache.set(cols, (m = new Map(cols.map((c) => [c.id, c]))));
+  return m;
+}
 
 export const normaliseColumnIds = (ids: string[] | undefined) => (ids ? [...new Set(ids.map((id) => RENAMED[id] ?? id))] : undefined);
 
 /** Visible columns in the saved order (unknown ids are ignored). */
-export function visibleColumns(ids: string[] | undefined): ColumnDef[] {
-  return (normaliseColumnIds(ids) ?? DEFAULT_COLUMNS).map((id) => COLUMN_BY_ID.get(id)).filter((c): c is ColumnDef => !!c);
+export function visibleColumns(ids: string[] | undefined, custom?: Scorecard[]): ColumnDef[] {
+  const map = byId(columnsFor(custom));
+  return (normaliseColumnIds(ids) ?? DEFAULT_COLUMNS).map((id) => map.get(id)).filter((c): c is ColumnDef => !!c);
 }
 
 /** Adds a column where it belongs by default: after the nearest visible column that precedes it in the registry. */
-export function insertColumn(order: string[], id: string): string[] {
+export function insertColumn(order: string[], id: string, custom?: Scorecard[]): string[] {
   if (order.includes(id)) return order;
-  const at = COLUMNS.findIndex((c) => c.id === id);
+  const cols = columnsFor(custom);
+  const at = cols.findIndex((c) => c.id === id);
   for (let i = at - 1; i >= 0; i--) {
-    const j = order.indexOf(COLUMNS[i].id);
+    const j = order.indexOf(cols[i].id);
     if (j >= 0) return [...order.slice(0, j + 1), id, ...order.slice(j + 1)];
   }
   return [id, ...order];

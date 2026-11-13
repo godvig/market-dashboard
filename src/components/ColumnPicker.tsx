@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { WatchlistRow } from "../../shared/types";
-import { COLUMNS, DEFAULT_COLUMNS, columnCoverage, insertColumn, normaliseColumnIds, type ColumnDef, type Ctx } from "../columns";
+import { DEFAULT_COLUMNS, columnCoverage, columnsFor, customOf, insertColumn, normaliseColumnIds, type ColumnDef, type Ctx } from "../columns";
 
 interface Props {
   value?: string[];
@@ -21,11 +21,13 @@ export function ColumnPicker({ value, onChange, rows, ctx, onTrafficLights, onSm
   const ref = useRef<HTMLDivElement>(null);
   const order = normaliseColumnIds(value) ?? DEFAULT_COLUMNS;
   const selected = new Set(order);
+  const custom = useMemo(() => customOf(ctx.scorecards), [ctx.scorecards]);
+  const COLUMNS = useMemo(() => columnsFor(custom), [custom]);
 
   // Only worked out while the menu is open: it walks every column for every row.
   const coverage = useMemo(
     () => (open ? new Map(COLUMNS.map((c) => [c.id, columnCoverage(c, rows, ctx)])) : new Map<string, number | null>()),
-    [open, rows, ctx],
+    [open, rows, ctx, COLUMNS],
   );
 
   useEffect(() => {
@@ -41,11 +43,11 @@ export function ColumnPicker({ value, onChange, rows, ctx, onTrafficLights, onSm
   }, [open]);
 
   // Hiding and showing keeps the order you have dragged the columns into.
-  const toggle = (id: string) => onChange(selected.has(id) ? order.filter((x) => x !== id) : insertColumn(order, id));
+  const toggle = (id: string) => onChange(selected.has(id) ? order.filter((x) => x !== id) : insertColumn(order, id, custom));
 
   const setTier = (tier: ColumnDef["tier"], on: boolean) => {
     const ids = COLUMNS.filter((c) => c.tier === tier).map((c) => c.id);
-    onChange(on ? ids.reduce(insertColumn, order) : order.filter((id) => !ids.includes(id)));
+    onChange(on ? ids.reduce((o, id) => insertColumn(o, id, custom), order) : order.filter((id) => !ids.includes(id)));
   };
 
   const renderTier = (tier: ColumnDef["tier"], title: string) => {

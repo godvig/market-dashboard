@@ -7,6 +7,8 @@ interface Props {
   api: StoreApi;
   activeListId?: string;
   onOpenList: (id: string) => void;
+  scorecardsOpen?: boolean;
+  onOpenScorecards: () => void;
 }
 
 type Drag = { kind: "list" | "group"; id: string } | null;
@@ -19,7 +21,7 @@ const UNCATEGORISED = "__none__";
  * list (to place it before) or onto a category (to put it last in it);
  * drag a category header to reorder categories. Double-click to rename.
  */
-export function Sidebar({ store, api, activeListId, onOpenList }: Props) {
+export function Sidebar({ store, api, activeListId, onOpenList, scorecardsOpen, onOpenScorecards }: Props) {
   const [drag, setDrag] = useState<Drag>(null);
   const [over, setOver] = useState<DropTarget>(null);
   const [editing, setEditing] = useState<{ kind: "list" | "group"; id: string } | null>(null);
@@ -213,6 +215,10 @@ export function Sidebar({ store, api, activeListId, onOpenList }: Props) {
         {store.groups.map(renderGroup)}
         {renderGroup(null)}
       </nav>
+      <button className={`side-link${scorecardsOpen ? " active" : ""}`} onClick={onOpenScorecards}>
+        Scorecards
+        <small>build and tune your own</small>
+      </button>
       <div className="side-actions">
         <button
           onClick={() => {

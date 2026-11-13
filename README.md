@@ -14,6 +14,8 @@ A stock watchlist and analysis dashboard that pulls data from free market-data A
 
 - **Sidebar with categories.** Group watchlists into categories, drag lists between categories and drag categories to reorder them. Double-click to rename. Everything is saved on the server in `data/store.json`, with a backup copy in the browser. Export/import lists as JSON
 - **Scorecards.** Nine scoring models (Sundhet with two weight profiles, Kvalitet & värdering, Key Metrics, Utdelning, Utdelningspoäng, Tillväxt, Tillväxt graderad, Egen bedömning) shown as sortable 0–100 columns with coverage (e.g. `16/18` metrics had data). Points are blended smoothly between tiers, and a score is only shown when enough of the scorecard has data. The stock page breaks every score down per criterion: value, tier and points
+- **Build your own scorecards.** Duplicate a preset or start fresh, then change criteria, thresholds, points and weights in the browser. A live ranking of the open list shows which stocks move up or down as you edit. Export a scorecard as a JSON file to share it, import someone else's. See [Your own scorecards](#your-own-scorecards)
+- **Rank a list by a scorecard.** Each list can have its own "lens", e.g. *Utdelning* for a dividend list and *Tillväxt* for a growth list. The table sorts by it and keeps its column in view
 - **Traffic lights.** Green / yellow / red dots on each key figure, using the spreadsheet's icon-set thresholds (toggle in the column picker)
 - **Bring your own data.** Import key figures from a CSV or Excel file, such as an export from Börsdata's screener, to fill the scorecards with 5- and 10-year growth and the rest without an API key. Columns are recognised by name (Swedish and English), you check the converted values in a preview, rows are matched to your stocks by ticker or name, and the mapping is remembered so the next export imports in one click. Imported figures stay on your machine. See [Importing key figures](#importing-key-figures-csv--excel)
 - **Own notes and assessments per stock.** Sector, niche, country, free-text notes and 0–3 assessments (outlook, management, insiders, sector trend…) that feed the manual criteria. Stored only in `data/store.json` on your machine
@@ -58,6 +60,33 @@ The interface is in English, but the scorecards keep the Swedish names they had 
 | **Egen bedömning** | Own assessment | Your 0–3 ratings of outlook, management, insiders and more. |
 
 Defined in [`shared/scoring.ts`](shared/scoring.ts) as data (criteria → tiers → points), so new models are a few lines. The presets start from the original spreadsheet formulas. Tests in `shared/scoring.test.ts` check them against the spreadsheet's results for a real row, using the "exactly like Excel" settings (`EXCEL_SCORING`); where the app deliberately scores differently (listed below), the test says by how much and why.
+
+### Your own scorecards
+
+Open **Scorecards** in the sidebar (or **Edit…** next to *Rank by* above the table).
+
+- **Built-in cards are locked**, so they always match the spreadsheets. Press **Duplicate** to get an editable copy, or **+ New** for a small starter card (ROIC, net debt/EBITDA, FCF yield).
+- **A criterion** is a metric, a weight and a list of tiers. Each tier has a range (`≥`/`>` from, `≤`/`<` to, or *any*) and points. The first tier whose range the value falls in gives the points; a tier with no range catches everything else. Points are blended between tiers unless a tier is marked **hard** (losses, "no dividend").
+- **The preview** ranks the open list by the card you are editing. Arrows show how far each stock has moved since you opened the card, so you see what a threshold change actually does.
+- **Changes save automatically.** Custom cards live in `data/store.json` next to your lists.
+- **Export / Import** writes and reads a small JSON file:
+
+```json
+{
+  "format": "market-screener-scorecard",
+  "version": 1,
+  "scorecard": {
+    "name": "Compounders",
+    "description": "High returns on capital, little debt",
+    "criteria": [
+      { "label": "ROIC", "metric": "roic", "weight": 2,
+        "tiers": [{ "gte": 15, "points": 3 }, { "gte": 8, "points": 1 }, { "points": 0 }] }
+    ]
+  }
+}
+```
+
+Imported files are validated (`shared/scorecardIO.ts`): unknown metrics are rejected, weights and points are clamped, and an imported card never replaces a built-in one or a card you already have.
 
 ### Two things the app does differently from the spreadsheet
 

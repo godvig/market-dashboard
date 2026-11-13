@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { MANUAL_LEVELS, type ManualKey, type MetricKey } from "../../shared/metrics";
-import { SCORECARDS, score, scoreBand } from "../../shared/scoring";
+import { score, scoreBand } from "../../shared/scoring";
 import type { WatchlistRow } from "../../shared/types";
 import { isImportSource } from "../../shared/importMerge";
 import { formatMetric, ImportedMark, sourceOf, sourceOfValue, type Ctx } from "../columns";
@@ -30,7 +30,7 @@ export function ScorePanel({ row, ctx, onAssess }: Props) {
 
   return (
     <div className="scores">
-      {SCORECARDS.map((card) => {
+      {ctx.scorecards.map((card) => {
         const s = score(card, src, ctx.scoring);
         const isOpen = open === card.id;
         return (

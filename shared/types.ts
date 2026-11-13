@@ -1,3 +1,4 @@
+import type { Scorecard } from "./scoring";
 // Types shared by the server and the web client.
 
 export interface Quote {
@@ -70,6 +71,8 @@ export interface Watchlist {
   symbols: string[];
   /** Category in the sidebar; undefined = uncategorised. */
   groupId?: string;
+  /** Scorecard the list is ranked by ("lens"); undefined = no ranking. */
+  scorecardId?: string;
 }
 
 export interface ListGroup {
@@ -127,6 +130,8 @@ export interface UserStore {
   imported?: Record<string, ImportedFigures>;
   /** Saved column mappings, keyed by a hash of the file's headers. */
   importMappings?: Record<string, ImportMapping>;
+  /** Scorecards the user has built or copied; the presets live in shared/scoring.ts. */
+  scorecards?: Scorecard[];
 }
 
 export interface Candle {

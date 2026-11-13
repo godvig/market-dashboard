@@ -4,6 +4,7 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { normaliseInvestmentType } from "../shared/investmentTypes";
+import { parseScorecards } from "../shared/scorecardIO";
 import {
   FUNDAMENTAL_KEYS,
   type FundamentalKey,
@@ -74,7 +75,8 @@ export function parseStore(input: unknown): UserStore {
       .filter(Boolean)
       .slice(0, 300);
     const groupId = typeof o.groupId === "string" && groupIds.has(o.groupId) ? o.groupId : undefined;
-    return { id, name, symbols, ...(groupId ? { groupId } : {}) };
+    const scorecardId = str(o.scorecardId, 40) || undefined;
+    return { id, name, symbols, ...(groupId ? { groupId } : {}), ...(scorecardId ? { scorecardId } : {}) };
   });
 
   const columns = Array.isArray(raw.columns)
@@ -85,6 +87,7 @@ export function parseStore(input: unknown): UserStore {
   const settings = parseSettings(raw.settings);
   const imported = parseImported(raw.imported);
   const importMappings = parseMappings(raw.importMappings);
+  const scorecards = parseScorecards(raw.scorecards);
 
   return {
     version: 2,
@@ -95,6 +98,7 @@ export function parseStore(input: unknown): UserStore {
     ...(settings ? { settings } : {}),
     ...(imported ? { imported } : {}),
     ...(importMappings ? { importMappings } : {}),
+    ...(scorecards ? { scorecards } : {}),
   };
 }
 

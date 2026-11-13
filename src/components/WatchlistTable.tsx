@@ -9,7 +9,7 @@ import {
 } from "@tanstack/react-table";
 import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import type { WatchlistRow } from "../../shared/types";
-import { columnCoverage, metaOf, moveColumn, visibleColumns, type Ctx } from "../columns";
+import { columnCoverage, customOf, metaOf, moveColumn, visibleColumns, type Ctx } from "../columns";
 import { HorseIcon } from "./HorseIcon";
 
 const col = createColumnHelper<WatchlistRow>();
@@ -26,6 +26,8 @@ interface Props {
   onOpen: (symbol: string) => void;
   onRemove: (symbol: string) => void;
   onFix: (symbol: string) => void;
+  /** Scorecard the list is ranked by: the table sorts by it and always shows its column. */
+  lensId?: string;
 }
 
 /** The first two columns stay put: they cannot be dragged and they stay visible when scrolling sideways. */
@@ -36,17 +38,27 @@ const LOW_COVERAGE = 0.6;
 interface ColMeta {
   title?: string;
   divider?: boolean;
+  lens?: boolean;
   left?: boolean;
   coverage?: number | null;
 }
 
-export function WatchlistTable({ rows, ctx, columnIds, onColumns, toolbar, progress, onOpen, onRemove, onFix }: Props) {
-  const [sorting, setSorting] = useState<SortingState>([]);
+export function WatchlistTable({ rows, ctx, columnIds, onColumns, toolbar, progress, onOpen, onRemove, onFix, lensId }: Props) {
+  const lensCol = lensId ? `score.${lensId}` : undefined;
+  const [sorting, setSorting] = useState<SortingState>(() => (lensCol ? [{ id: lensCol, desc: true }] : []));
+  // Picking another lens (or opening another list) re-ranks by it.
+  useEffect(() => setSorting(lensCol ? [{ id: lensCol, desc: true }] : []), [lensCol]);
   const [filter, setFilter] = useState("");
   const [dragId, setDragId] = useState<string | null>(null);
   const [drop, setDrop] = useState<{ id: string; after: boolean } | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
-  const defs = useMemo(() => visibleColumns(columnIds), [columnIds]);
+  const custom = useMemo(() => customOf(ctx.scorecards), [ctx.scorecards]);
+  const defs = useMemo(() => {
+    const visible = visibleColumns(columnIds, custom);
+    if (!lensCol || visible.some((d) => d.id === lensCol)) return visible;
+    // The lens column is shown first even when it is hidden in the column picker.
+    return [...visibleColumns([lensCol], custom), ...visible];
+  }, [columnIds, custom, lensCol]);
   // The divider marks where the extra key figures start. Once columns have been
   // dragged so that the two groups are mixed, there is no such place.
   const firstExtra = useMemo(() => {
@@ -181,7 +193,7 @@ export function WatchlistTable({ rows, ctx, columnIds, onColumns, toolbar, progr
         col.accessor((r) => d.value(r, ctx) ?? undefined, {
           id: d.id,
           header: d.label,
-          meta: { title: d.title, divider: d.id === firstExtra, left: d.align === "left", coverage: coverage.get(d.id) } satisfies ColMeta,
+          meta: { title: d.title, lens: d.id === lensCol, divider: d.id === firstExtra, left: d.align === "left", coverage: coverage.get(d.id) } satisfies ColMeta,
           sortingFn: "basic",
           sortUndefined: "last",
           sortDescFirst: !d.ascFirst,
@@ -205,7 +217,7 @@ export function WatchlistTable({ rows, ctx, columnIds, onColumns, toolbar, progr
         ),
       }),
     ],
-    [defs, ctx, firstExtra, coverage, onRemove, onFix],
+    [defs, ctx, firstExtra, coverage, onRemove, onFix, lensCol],
   );
 
   const table = useReactTable({
@@ -259,6 +271,7 @@ export function WatchlistTable({ rows, ctx, columnIds, onColumns, toolbar, progr
                       className={[
                         h.column.getCanSort() ? "sortable" : "",
                         meta?.divider ? "divider" : "",
+                        meta?.lens ? "lens" : "",
                         meta?.left ? "left" : "",
                         LOCKED.has(id) ? `locked locked-${id}` : id === "remove" ? "" : "movable",
                         dragId === id ? "dragging" : "",
@@ -284,7 +297,7 @@ export function WatchlistTable({ rows, ctx, columnIds, onColumns, toolbar, progr
                   const meta = c.column.columnDef.meta as ColMeta | undefined;
                   const locked = LOCKED.has(c.column.id) ? `locked locked-${c.column.id}` : "";
                   return (
-                    <td key={c.id} className={[meta?.divider ? "divider" : "", meta?.left ? "left" : "", locked].join(" ").trim() || undefined}>
+                    <td key={c.id} className={[meta?.divider ? "divider" : "", meta?.lens ? "lens" : "", meta?.left ? "left" : "", locked].join(" ").trim() || undefined}>
                       {flexRender(c.column.columnDef.cell, c.getContext())}
                     </td>
                   );

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { Scorecard } from "../shared/scoring";
 import type { Fundamentals, FundamentalKey, ImportedFigures, ImportMapping, ListGroup, StockMeta, UserStore, Watchlist } from "../shared/types";
 import { normaliseInvestmentType } from "../shared/investmentTypes";
 import { api } from "./api";
@@ -345,6 +346,40 @@ export function useStore() {
         if (columns) next.columns = columns;
         else delete next.columns;
         return next;
+      }),
+
+    // --- scorecards ---
+    /** Adds or replaces a custom scorecard (presets are never stored). */
+    saveScorecard: (card: Scorecard) =>
+      update((s) => {
+        const cards = s.scorecards ?? [];
+        const i = cards.findIndex((c) => c.id === card.id);
+        const next = i < 0 ? [...cards, card] : cards.map((c, j) => (j === i ? card : c));
+        return { ...s, scorecards: next.slice(0, 50) };
+      }),
+    /** Removes a custom scorecard, its column and any list that was ranked by it. */
+    deleteScorecard: (id: string) =>
+      update((s) => {
+        const next: UserStore = {
+          ...s,
+          scorecards: (s.scorecards ?? []).filter((c) => c.id !== id),
+          lists: s.lists.map((l) => {
+            if (l.scorecardId !== id) return l;
+            const rest = { ...l };
+            delete rest.scorecardId;
+            return rest;
+          }),
+        };
+        if (s.columns) next.columns = s.columns.filter((c) => c !== `score.${id}`);
+        if (!next.scorecards?.length) delete next.scorecards;
+        return next;
+      }),
+    /** Sets which scorecard a list is ranked by; undefined turns the lens off. */
+    setListLens: (listId: string, scorecardId: string | undefined) =>
+      mapList(listId, (l) => {
+        const rest = { ...l };
+        delete rest.scorecardId;
+        return scorecardId ? { ...rest, scorecardId } : rest;
       }),
   };
 }

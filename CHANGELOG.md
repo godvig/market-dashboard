@@ -2,6 +2,15 @@
 
 Notable changes, newest first.
 
+## 2026-11-13 – Scorecard editor
+
+- **Build your own scorecards** on the new *Scorecards* page: duplicate a preset or start from a small template, then edit criteria, metrics, tier ranges, points, hard edges and weights. Built-in cards stay locked so they keep matching the spreadsheets.
+- **Live preview**: the open list is ranked by the card you are editing, with arrows for how far each stock has moved since you opened it.
+- **Export and import** scorecards as JSON (`market-screener-scorecard`, version 1). Files are validated; an import never overwrites an existing card.
+- **A lens per list**: *Rank by* above the table picks the scorecard a list is sorted by. Its column is always shown and highlighted.
+- Custom scorecards get their own score column in the column picker and appear on the stock page's *Scores* tab.
+- Stored in `data/store.json` (`scorecards`, and `scorecardId` on each list). Deleting a card also removes its column and any list lens that used it.
+
 ## 2026-11-13 – English interface, sharper metrics
 
 ### Interface

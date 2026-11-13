@@ -69,4 +69,15 @@ describe("parseStore", () => {
     expect(s.imported).toEqual({ "GNUG-B.ST": { pe: { v: 14.2, src: "import: s.csv", at: "2026-11-13" } } });
     expect(s.importMappings).toEqual({ "1a2b3c4d": { headers: ["Bolag", "P/E", "X"], columns: ["id.name", "pe", null], scales: { 1: 100 }, suffix: ".ST" } });
   });
+  it("keeps custom scorecards and list lenses", () => {
+    const card = { id: "custom-x", name: "Mine", description: "", criteria: [{ metric: "pe", tiers: [{ lt: 15, points: 1 }, { points: 0 }] }] };
+    const s = parseStore({
+      version: 2,
+      groups: [],
+      lists: [{ id: "a", name: "A", symbols: ["AAPL"], scorecardId: "custom-x" }],
+      scorecards: [card, { name: "broken" }],
+    });
+    expect(s.lists[0].scorecardId).toBe("custom-x");
+    expect(s.scorecards?.map((c) => c.id)).toEqual(["custom-x"]);
+  });
 });

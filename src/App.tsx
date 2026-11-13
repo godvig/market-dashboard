@@ -3,6 +3,7 @@ import type { Ctx } from "./columns";
 import type { KnownStock } from "../shared/importMatch";
 import type { Cell } from "../shared/importParse";
 import { DEFAULT_IMPORT_MAX_AGE_DAYS } from "../shared/importMerge";
+import { allScorecards } from "../shared/scorecardIO";
 import type { WatchlistRow } from "../shared/types";
 import { api, IS_DEMO } from "./api";
 import { AddSymbol } from "./components/AddSymbol";
@@ -10,7 +11,9 @@ import { ColumnPicker } from "./components/ColumnPicker";
 import { DetailPanel } from "./components/DetailPanel";
 import { FixTicker } from "./components/FixTicker";
 import { ImportDialog } from "./components/ImportDialog";
+import { LensPicker } from "./components/LensPicker";
 import { ListHeader } from "./components/ListHeader";
+import { ScorecardEditor } from "./components/ScorecardEditor";
 import { Sidebar } from "./components/Sidebar";
 import { WatchlistTable } from "./components/WatchlistTable";
 import { useRoute } from "./useRoute";
@@ -107,6 +110,7 @@ export function App() {
   const onRemove = useCallback((sym: string) => listId && removeSymbol(listId, sym), [listId, removeSymbol]);
   const openStock = useCallback((sym: string) => listId && go(listId, sym), [listId, go]);
   const backToList = useCallback(() => listId && go(listId), [listId, go]);
+  const openScorecard = useCallback((id: string) => listId && go(listId, undefined, true, id), [listId, go]);
 
   // Rows in the list's own order, for prev/next in the stock view.
   const ordered = useMemo(
@@ -122,8 +126,9 @@ export function App() {
       stocks: store?.stocks,
       trafficLights: store?.settings?.trafficLights !== false,
       scoring: { smooth: store?.settings?.smoothScoring !== false, minCoverage: (store?.settings?.minCoverage ?? 60) / 100 },
+      scorecards: allScorecards(store?.scorecards),
     }),
-    [baseCurrency, store?.stocks, store?.settings?.trafficLights, store?.settings?.smoothScoring, store?.settings?.minCoverage],
+    [baseCurrency, store?.stocks, store?.scorecards, store?.settings?.trafficLights, store?.settings?.smoothScoring, store?.settings?.minCoverage],
   );
   const fixMeta = fixing ? store?.stocks?.[fixing] : undefined;
 
@@ -137,6 +142,11 @@ export function App() {
         activeListId={list.id}
         onOpenList={(id) => {
           go(id);
+          setMenuOpen(false);
+        }}
+        scorecardsOpen={route.scorecard != null}
+        onOpenScorecards={() => {
+          go(list.id, undefined, false, list.scorecardId ?? "");
           setMenuOpen(false);
         }}
       />
@@ -170,7 +180,21 @@ export function App() {
         {s.saveError && <p className="neg">Could not save to the server: {s.saveError} (kept in this browser)</p>}
         {error && <p className="neg">Could not load data: {error}</p>}
 
-        {route.symbol ? (
+        {route.scorecard != null ? (
+          <ScorecardEditor
+            cards={ctx.scorecards}
+            selectedId={route.scorecard || undefined}
+            rows={rows}
+            ctx={ctx}
+            listName={list.name}
+            lensId={list.scorecardId}
+            onSelect={openScorecard}
+            onSave={s.saveScorecard}
+            onDelete={s.deleteScorecard}
+            onLens={(id) => s.setListLens(list.id, id)}
+            onBack={backToList}
+          />
+        ) : route.symbol ? (
           stockRow ? (
             <DetailPanel
               row={stockRow}
@@ -270,16 +294,25 @@ export function App() {
                 columnIds={store.columns}
                 onColumns={s.setColumns}
                 progress={progress}
+                lensId={ctx.scorecards.some((c) => c.id === list.scorecardId) ? list.scorecardId : undefined}
                 toolbar={
-                  <ColumnPicker
-                    value={store.columns}
-                    onChange={s.setColumns}
-                    rows={rows}
-                    ctx={ctx}
-                    onTrafficLights={s.setTrafficLights}
-                    onSmoothScoring={s.setSmoothScoring}
-                    onMinCoverage={s.setMinCoverage}
-                  />
+                  <>
+                    <LensPicker
+                      cards={ctx.scorecards}
+                      value={list.scorecardId}
+                      onChange={(id) => s.setListLens(list.id, id)}
+                      onEdit={() => go(list.id, undefined, false, list.scorecardId ?? "")}
+                    />
+                    <ColumnPicker
+                      value={store.columns}
+                      onChange={s.setColumns}
+                      rows={rows}
+                      ctx={ctx}
+                      onTrafficLights={s.setTrafficLights}
+                      onSmoothScoring={s.setSmoothScoring}
+                      onMinCoverage={s.setMinCoverage}
+                    />
+                  </>
                 }
                 onOpen={openStock}
                 onRemove={onRemove}
