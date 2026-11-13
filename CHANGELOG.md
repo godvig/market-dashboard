@@ -2,6 +2,11 @@
 
 Notable changes, newest first.
 
+## 2026-11-13
+
+- Round app icon: a score ring, in the same ring style as the other godvig.com sites.
+- MIT `LICENSE` file and a License section in the README.
+
 ## 2026-11-12 – Honest scores, a table you can arrange, new horses
 
 ### Scoring

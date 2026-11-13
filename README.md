@@ -191,3 +191,7 @@ src/               React client (Vite, TanStack Table, lightweight-charts)
 Your lists, notes and assessments are saved only in `data/store.json` (git-ignored) and never leave your machine.
 
 Data from free sources may be delayed or inaccurate. This is not investment advice.
+
+## License
+
+[MIT](LICENSE) © Adam Englund. The license covers the code only; market data is subject to each provider's own terms (see *Data and terms of use*).
