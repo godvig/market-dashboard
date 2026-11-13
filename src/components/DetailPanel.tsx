@@ -194,7 +194,13 @@ export function DetailPanel({ row, ctx, listName, prev, next, onBack, onNavigate
         )}
 
         {tab === "scores" && <ScorePanel row={row} ctx={ctx} onAssess={onAssess} />}
-        {tab === "info" && <StockInfo symbol={q.symbol} meta={meta} onChange={onMeta} onAssess={onAssess} />}
+        {tab === "info" && <StockInfo
+            symbol={q.symbol}
+            meta={meta}
+            usedTypes={Object.values(ctx.stocks ?? {}).flatMap((m) => (m?.investmentType ? [m.investmentType] : []))}
+            onChange={onMeta}
+            onAssess={onAssess}
+          />}
       </div>
     </div>
   );

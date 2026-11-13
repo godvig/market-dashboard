@@ -228,6 +228,7 @@ th.left, td.left { text-align: left; }
 .info-field > span { color: var(--muted); font-size: 12px; }
 .info-field textarea { font: inherit; font-size: 14px; color: var(--text); background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; resize: vertical; }
 .assessments { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.type-custom input { width: 100%; }
 .assessments select, .info-field select { font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--text); }
 
 /* Fix ticker */

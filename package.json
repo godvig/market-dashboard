@@ -1,5 +1,5 @@
 {
-  "name": "market-dashboard",
+  "name": "market-screener",
   "version": "0.1.0",
   "description": "Stock watchlist and analysis dashboard pulling free market-data APIs (Yahoo, Finnhub, FMP).",
   "scripts": {

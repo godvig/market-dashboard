@@ -2,6 +2,11 @@
 
 Notable changes, newest first.
 
+## 2026-11-13 – Investment type picker
+
+- **Investment type is a dropdown** on *Mina anteckningar*: the six horses, then your own types already used on other stocks, then *Egen typ…* to type a new one (Enter saves, Esc cancels). A type containing "horse" gets the plain horse icon.
+- Repository renamed to `market-screener` (package name and demo link updated). Saved data and import files keep the `market-dashboard` keys, so nothing needs migrating.
+
 ## 2026-11-13 – Mobile layout, new name
 
 - **Renamed to Market Screener** (page title, header, README). The repository keeps its name for now.

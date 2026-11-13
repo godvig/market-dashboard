@@ -163,7 +163,7 @@ export function App() {
         {IS_DEMO && (
           <p className="demo-banner">
             <strong>Demo:</strong> all prices and key figures are made up, not real market data. Your lists are saved
-            only in this browser. <a href="https://github.com/godvig/market-dashboard">Code on GitHub</a>
+            only in this browser. <a href="https://github.com/godvig/market-screener">Code on GitHub</a>
           </p>
         )}
 
