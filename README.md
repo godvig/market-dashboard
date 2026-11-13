@@ -2,7 +2,7 @@
 
 A stock watchlist and analysis dashboard that pulls data from free market-data APIs. Add any tickers (Stockholm, US, Europe…), sort and filter the list by returns, risk and valuation metrics, and open a candlestick chart with moving averages for each one.
 
-**[Try the demo →](https://godvig.github.io/market-dashboard/)** (made-up prices, runs entirely in your browser)
+**[Try the demo →](https://screener.godvig.com/)** (made-up prices, runs entirely in your browser)
 
 ![Watchlist with scores and traffic lights](docs/screenshot.png)
 

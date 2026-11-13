@@ -1,7 +1,7 @@
 name: Deploy demo to GitHub Pages
 
 # Builds the app in demo mode (made-up prices, no server) and publishes it to
-# https://godvig.github.io/market-dashboard/
+# https://screener.godvig.com/
 on:
   push:
     branches: [main]
