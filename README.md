@@ -1,4 +1,4 @@
-# Market Dashboard
+# Market Screener
 
 A stock watchlist and analysis dashboard that pulls data from free market-data APIs. Add any tickers (Stockholm, US, Europe…), sort and filter the list by returns, risk and valuation metrics, and open a candlestick chart with moving averages for each one.
 
@@ -15,6 +15,7 @@ A stock watchlist and analysis dashboard that pulls data from free market-data A
 - **Traffic lights.** Green / yellow / red dots on each key figure, using the spreadsheet's icon-set thresholds (toggle in the column picker)
 - **Bring your own data.** Import key figures from a CSV or Excel file, such as an export from Börsdata's screener, to fill the scorecards with 5- and 10-year growth and the rest without an API key. Columns are recognised by name (Swedish and English), you check the converted values in a preview, rows are matched to your stocks by ticker or name, and the mapping is remembered so the next export imports in one click. Imported figures stay on your machine. See [Importing key figures](#importing-key-figures-csv--excel)
 - **Own notes and assessments per stock.** Sector, niche, country, free-text notes and 0–3 assessments (outlook, management, insiders, sector trend…) that feed the manual criteria. Stored only in `data/store.json` on your machine
+- **Works on your phone.** Watchlists open from a ☰ drawer, list actions sit behind ⋯, the table keeps the symbol (with name and horse) pinned while you swipe through the other columns, and dialogs and the column picker fill the screen
 - **Arrange the table your way.** Drag a column header to move it (Symbol and Name are locked and stay in view when you scroll sideways). Long headers wrap. The mouse wheel moves the table sideways when the pointer is on the header row, or anywhere in the table once the page has nothing left to scroll; Shift + wheel always works
 - **Data coverage at a glance.** The column picker shows, per column, how many percent of the current list has a value, and a header is flagged when under 60 % of the list has data
 - **Column picker.** Choose which columns to show: standard price/return/risk columns, then — right of a divider — extra key figures (dividend yield, payout ratio, dividend/share, P/E, forward P/E, P/S, P/B, EV/EBIT, EV/EBITDA, market cap, ROE, ROIC, profit margin, revenue growth, net debt/EBITDA, beta)

@@ -30,6 +30,13 @@ export function App() {
   const [progress, setProgress] = useState<string>();
   const [fixing, setFixing] = useState<string>();
   const [importing, setImporting] = useState<{ fileName: string; table: Cell[][] }>();
+  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMenuOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
   const loadId = useRef(0);
   /** Company names seen this session, so imported rows can be matched by name. */
   const seenNames = useRef(new Map<string, string>());
@@ -123,12 +130,26 @@ export function App() {
   if (!store || !list) return <main className="loading-screen muted">Loading…</main>;
 
   return (
-    <div className="layout">
-      <Sidebar store={store} api={s} activeListId={list.id} onOpenList={(id) => go(id)} />
+    <div className={`layout${menuOpen ? " menu-open" : ""}`}>
+      <Sidebar
+        store={store}
+        api={s}
+        activeListId={list.id}
+        onOpenList={(id) => {
+          go(id);
+          setMenuOpen(false);
+        }}
+      />
+      {menuOpen && <div className="drawer-backdrop" onClick={() => setMenuOpen(false)} aria-hidden="true" />}
 
       <main>
         <header>
-          <h1>Market Dashboard</h1>
+          <button className="menu-btn" onClick={() => setMenuOpen(true)} aria-label="Open watchlists" aria-expanded={menuOpen}>
+            <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </button>
+          <h1>Market Screener</h1>
           <span className="badge" title="Data provider (set PROVIDER in .env)">
             {provider ?? "…"}
           </span>
@@ -270,8 +291,11 @@ export function App() {
 
         <footer className="muted">
           {updated && `Updated ${updated.toLocaleTimeString("sv-SE")} · `}
-          Click a row to open the stock · drag a column header to move it · scroll on the header row to move sideways ·
-          free data may be delayed. Not investment advice.
+          <span className="mouse-hint">
+            Click a row to open the stock · drag a column header to move it · scroll on the header row to move sideways ·{" "}
+          </span>
+          <span className="touch-hint">Tap a row to open the stock · swipe the table for more columns · </span>
+          Free data may be delayed. Not investment advice.
         </footer>
       </main>
     </div>

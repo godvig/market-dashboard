@@ -368,3 +368,120 @@ button.primary:disabled { opacity: 0.5; }
 .stock-search { position: relative; min-width: 280px; }
 .stock-search .hits.static { max-height: 180px; }
 .map-table td:nth-child(n + 4) { max-width: 116px; overflow: hidden; text-overflow: ellipsis; }
+
+/* ------------------------------------------------------------------ */
+/* Phones and small tablets                                            */
+/* ------------------------------------------------------------------ */
+.menu-btn, .more-btn, .sym-name, .touch-hint { display: none; }
+.list-header { position: relative; }
+
+@media (max-width: 760px) {
+  /* 16 px inputs stop iOS from zooming in on focus. */
+  input, select, textarea { font-size: 16px; }
+
+  .layout { display: block; }
+  main { padding: 12px 12px calc(16px + env(safe-area-inset-bottom)); gap: 12px; }
+
+  /* Watchlists become a drawer behind the ☰ button. */
+  .sidebar {
+    position: fixed; z-index: 60; top: 0; bottom: 0; left: 0; height: auto;
+    width: min(300px, 86vw); padding: calc(16px + env(safe-area-inset-top)) 10px 16px;
+    transform: translateX(-102%); transition: transform .22s ease; box-shadow: none;
+  }
+  .menu-open .sidebar { transform: none; box-shadow: 8px 0 32px rgb(0 0 0 / .25); }
+  .drawer-backdrop { position: fixed; inset: 0; z-index: 55; background: rgb(15 18 25 / .45); }
+  .side-list, .side-group-head { min-height: 40px; }
+  .group-actions { display: inline-flex; } /* no hover on touch screens */
+  .side-list .grip { visibility: hidden; }  /* drag & drop needs a mouse */
+
+  .menu-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 40px; height: 40px; padding: 0; margin-left: -4px; color: var(--text);
+  }
+  main > header { gap: 8px; }
+  main > header h1 { font-size: 18px; }
+  main > header .spacer { display: none; }
+  main > header .add { order: 10; flex: 1 1 100%; }
+  main > header .add input { width: 100%; }
+  main > header > button:last-child { margin-left: auto; }
+  .hits { left: 0; right: 0; width: auto; }
+
+  /* List title with a "⋯" menu for its actions */
+  .list-header { flex-wrap: nowrap; }
+  .crumbs { min-width: 0; flex-wrap: wrap; }
+  .crumbs h2 { font-size: 18px; overflow-wrap: anywhere; }
+  .title-edit { width: 100%; }
+  .more-btn { display: inline-flex; width: 40px; height: 40px; padding: 0; align-items: center; justify-content: center; font-size: 20px; flex: none; }
+  .list-actions { display: none; }
+  .list-actions.open {
+    display: flex; flex-direction: column; align-items: stretch; gap: 4px;
+    position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; min-width: 200px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 6px;
+    box-shadow: 0 12px 32px rgb(0 0 0 / .18);
+  }
+  .list-actions.open button { text-align: left; padding: 10px 12px; font-size: 15px; border: none; }
+  .list-actions.open .sep { width: auto; height: 1px; margin: 2px 0; }
+  .list-actions.open > span:not(.sep) { padding: 6px 12px; }
+
+  /* Table: one sticky column with symbol + name, swipe for the rest */
+  .card { padding: 10px; border-radius: 10px; }
+  .toolbar { flex-wrap: wrap; gap: 8px; }
+  .toolbar input { width: auto; flex: 1 1 160px; min-width: 0; }
+  .table-wrap { margin: 0 -10px; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+  th.locked-name, td.locked-name { display: none; }
+  .locked-symbol { width: 132px; min-width: 132px; max-width: 132px; box-shadow: 6px 0 6px -6px rgb(0 0 0 / .18); }
+  td.locked-symbol { white-space: normal; line-height: 1.2; }
+  .sym-name {
+    display: block; font-size: 12px; color: var(--muted); margin-top: 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .sym-name .horse { margin-right: 3px; }
+  .sym-name .link { font-size: 12px; }
+  th, td { padding: 9px 8px; }
+  th .th-label { max-width: 84px; }
+  footer { line-height: 1.5; }
+
+  /* Column picker: a bottom sheet */
+  .picker-menu {
+    position: fixed; left: 8px; right: 8px; top: auto; bottom: calc(8px + env(safe-area-inset-bottom));
+    width: auto; max-height: 75vh; z-index: 70; box-shadow: 0 -8px 40px rgb(0 0 0 / .3);
+  }
+  .picker label { min-height: 32px; }
+
+  /* Stock page */
+  .breadcrumb { flex-wrap: wrap; row-gap: 4px; }
+  .detail-head { flex-direction: column; }
+  .mini-scores { flex-wrap: nowrap; overflow-x: auto; width: 100%; padding-bottom: 4px; scrollbar-width: none; }
+  .mini-score { flex: none; min-width: 72px; }
+  .tabs-bar { overflow-x: auto; scrollbar-width: none; }
+  .tabs-bar button { flex: none; padding: 10px 12px; }
+  .ranges { flex-wrap: wrap; }
+  .stock-view .ranges { justify-content: flex-start; }
+  .ranges button { padding: 6px 10px; }
+  .chart { height: 260px; }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; }
+  .score-head { padding: 10px; gap: 10px; }
+  .score-body { padding: 0 10px 10px; overflow-x: auto; }
+  .breakdown td.source { max-width: 140px; }
+  .info-row, .assessments { grid-template-columns: minmax(0, 1fr); }
+
+  /* Dialogs fill the screen */
+  .modal-backdrop { padding: 0; place-items: stretch; }
+  .modal { width: 100%; max-height: none; height: 100dvh; border-radius: 0; border: none; }
+  .modal-head { padding: calc(10px + env(safe-area-inset-top)) 12px 10px; flex-wrap: wrap; gap: 8px 12px; }
+  .modal-body { padding: 12px; }
+  .modal-foot { padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); }
+  .foot-actions { width: 100%; }
+  .foot-actions button { flex: 1; padding: 10px; }
+
+  .mouse-hint, .nav-sym { display: none; }
+  .touch-hint { display: inline; }
+  .breadcrumb { flex-wrap: nowrap; }
+  .breadcrumb > button:not(.crumb-link) { width: 40px; height: 36px; padding: 0; font-size: 18px; flex: none; }
+  .breadcrumb .crumb-link { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .breadcrumb > .muted { white-space: nowrap; }
+  .type-tag { white-space: nowrap; }
+  .breakdown { font-size: 12px; }
+  .breakdown td:first-child { white-space: normal; min-width: 110px; }
+  .breakdown td, .breakdown th { padding: 6px 5px; }
+}

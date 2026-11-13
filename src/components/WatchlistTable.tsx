@@ -122,7 +122,34 @@ export function WatchlistTable({ rows, ctx, columnIds, onColumns, toolbar, progr
       col.accessor((r) => r.quote.symbol, {
         id: "symbol",
         header: "Symbol",
-        cell: (c) => <strong>{c.getValue()}</strong>,
+        cell: (c) => {
+          const r = c.row.original;
+          const meta = metaOf(r, ctx);
+          return (
+            <>
+              <strong>{c.getValue()}</strong>
+              {/* Phones hide the Name column and show the name here instead. */}
+              <span className={`sym-name${r.error ? " err" : ""}`}>
+                {r.error ? (
+                  <button
+                    className="link"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onFix(r.quote.symbol);
+                    }}
+                  >
+                    ⚠ Find ticker
+                  </button>
+                ) : (
+                  <>
+                    <HorseIcon type={meta?.investmentType} size={14} />
+                    {meta?.name ?? r.quote.name}
+                  </>
+                )}
+              </span>
+            </>
+          );
+        },
       }),
       // Your own name for the company (e.g. from the spreadsheet) wins over the provider's.
       col.accessor((r) => metaOf(r, ctx)?.name ?? r.quote.name, {

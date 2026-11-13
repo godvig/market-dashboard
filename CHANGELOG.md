@@ -2,6 +2,19 @@
 
 Notable changes, newest first.
 
+## 2026-11-13 – Mobile layout, new name
+
+- **Renamed to Market Screener** (page title, header, README). The repository keeps its name for now.
+- **Phones (≤ 760 px):**
+  - The watchlist sidebar becomes a drawer behind a ☰ button; it closes on picking a list, tapping outside or Esc.
+  - List actions (Rename, Duplicate, Delete, Export, Import) move into a ⋯ menu.
+  - The table pins one column with the symbol, and the name and horse under it; swipe for the rest.
+  - The column picker opens as a bottom sheet; the import dialog fills the screen.
+  - Stock page: score badges scroll sideways, prev/next become arrow buttons, the score breakdown wraps metric names, and stats sit in two columns.
+  - 16 px inputs (no zoom on focus in iOS Safari), 40 px touch targets, safe-area insets for notched phones.
+  - The footer shows touch hints instead of mouse hints.
+- Dragging lists and columns still needs a mouse; on touch screens columns are sorted by tapping.
+
 ## 2026-11-13 – Import key figures from a file
 
 - **Import key figures from CSV or Excel**, for example a Börsdata screener export, through the existing *Import* button (the file type is read from the content). Bring your own data: no API key needed, nothing is redistributed.

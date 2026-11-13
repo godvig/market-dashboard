@@ -24,6 +24,8 @@ export function ListHeader({ list, group, canDelete, allLists, onRename, onDupli
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [confirm, setConfirm] = useState(false);
+  /** Phones: the actions sit behind a "⋯" button. */
+  const [menu, setMenu] = useState(false);
   const [importError, setImportError] = useState<string>();
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -92,7 +94,16 @@ export function ListHeader({ list, group, canDelete, allLists, onRename, onDupli
           </h2>
         )}
       </div>
-      <div className="list-actions">
+      <button className="more-btn" onClick={() => setMenu((v) => !v)} aria-label="List actions" aria-expanded={menu}>
+        ⋯
+      </button>
+      <div
+        className={`list-actions${menu || confirm ? " open" : ""}`}
+        onClick={(e) => {
+          // On phones, close the menu after an action (Delete keeps it open for its confirmation).
+          if ((e.target as HTMLElement).closest("button")) setTimeout(() => setMenu(false));
+        }}
+      >
         {confirm ? (
           <>
             <span>Delete “{list.name}”?</span>

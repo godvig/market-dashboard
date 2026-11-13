@@ -98,10 +98,10 @@ export function DetailPanel({ row, ctx, listName, prev, next, onBack, onNavigate
         <span className="muted"> › {q.symbol}</span>
         <span className="spacer" />
         <button disabled={!prev} onClick={() => prev && onNavigate(prev)} title="Previous in list (←)">
-          ‹ {prev ?? ""}
+          ‹<span className="nav-sym"> {prev ?? ""}</span>
         </button>
         <button disabled={!next} onClick={() => next && onNavigate(next)} title="Next in list (→)">
-          {next ?? ""} ›
+          <span className="nav-sym">{next ?? ""} </span>›
         </button>
       </nav>
 
