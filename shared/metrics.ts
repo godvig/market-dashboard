@@ -129,6 +129,11 @@ export const METRICS: MetricDef[] = [
     rate: { good: any({ gte: 15 }), bad: any({ lt: 5 }) }, ruleSource: "analysark",
   },
   {
+    key: "roic", label: "ROIC", sv: "Avkastning på investerat kapital", unit: "pct",
+    description: "Rörelseresultat i förhållande till eget kapital plus räntebärande skulder.",
+    rate: { good: any({ gte: 15 }), bad: any({ lt: 5 }) }, ruleSource: "default",
+  },
+  {
     key: "profitMargin", label: "Margin", sv: "Vinstmarginal", unit: "pct",
     description: "Förmåga att hantera sina kostnader och generera vinst. Nettoresultat / omsättning.",
     rate: { good: any({ gte: 20 }), bad: any({ lt: 5 }) }, ruleSource: "analysark",

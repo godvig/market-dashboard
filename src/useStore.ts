@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ListGroup, StockMeta, UserStore, Watchlist } from "../shared/types";
+import type { Fundamentals, FundamentalKey, ImportedFigures, ImportMapping, ListGroup, StockMeta, UserStore, Watchlist } from "../shared/types";
 import { normaliseInvestmentType } from "../shared/investmentTypes";
 import { api } from "./api";
 
@@ -19,6 +19,17 @@ export interface ImportBundle {
   version: 1;
   lists: { name: string; group?: string; symbols: string[] }[];
   stocks?: Record<string, StockMeta>;
+}
+
+/** Key figures from one file, ready to save: matched rows and the mapping that produced them. */
+export interface FigureImport {
+  fileName: string;
+  /** `name` is the company name in the file, kept for stocks that are new to your lists. */
+  rows: { symbol: string; name?: string; values: Fundamentals }[];
+  hash: string;
+  mapping: ImportMapping;
+  /** Also create a list with these stocks. */
+  newList?: string;
 }
 
 export const isImportBundle = (x: unknown): x is ImportBundle =>
@@ -89,6 +100,18 @@ export function useStore() {
         .then(() => setSaveError(undefined))
         .catch((e: Error) => setSaveError(e.message));
     }, 300);
+  }, []);
+
+  /** Saves to the server now instead of after the usual short delay (e.g. before reloading rows that depend on it). */
+  const flush = useCallback(async () => {
+    clearTimeout(timer.current);
+    if (!latest.current) return;
+    try {
+      await api.saveStore(latest.current);
+      setSaveError(undefined);
+    } catch (e) {
+      setSaveError((e as Error).message);
+    }
   }, []);
 
   const mapList = (id: string, fn: (l: Watchlist) => Watchlist) =>
@@ -266,6 +289,51 @@ export function useStore() {
       });
       return firstId;
     },
+    // --- key figures imported from files ---
+    /**
+     * Saves imported figures per symbol (a newer import replaces the same
+     * figures from an older one, others are kept), remembers the column
+     * mapping, and optionally creates a list. Returns the new list's id.
+     */
+    importFigures(imp: FigureImport): string | undefined {
+      const at = new Date().toISOString().slice(0, 10);
+      const src = `import: ${imp.fileName}`.slice(0, 160);
+      let listId: string | undefined;
+      update((s) => {
+        const imported = { ...(s.imported ?? {}) };
+        for (const { symbol, values } of imp.rows) {
+          const sym = symbol.toUpperCase();
+          const figs: ImportedFigures = { ...(imported[sym] ?? {}) };
+          for (const [k, v] of Object.entries(values) as [FundamentalKey, number][]) figs[k] = { v, src, at };
+          imported[sym] = figs;
+        }
+        const listed = new Set(s.lists.flatMap((l) => l.symbols));
+        const stocks = { ...(s.stocks ?? {}) };
+        for (const { symbol, name } of imp.rows) {
+          const sym = symbol.toUpperCase();
+          if (name && !listed.has(sym) && !stocks[sym]?.name) stocks[sym] = { ...(stocks[sym] ?? {}), name: name.slice(0, 120) };
+        }
+        const next: UserStore = { ...s, stocks, imported, importMappings: { ...(s.importMappings ?? {}), [imp.hash]: imp.mapping } };
+        if (imp.newList) {
+          const symbols = [...new Set(imp.rows.map((r) => r.symbol.toUpperCase()))].slice(0, 300);
+          const list: Watchlist = { id: newId(), name: imp.newList.slice(0, 60) || "Imported", symbols };
+          listId = list.id;
+          next.lists = [...s.lists, list];
+        }
+        return next;
+      });
+      return listId;
+    },
+    /** Forgets every imported figure (the saved column mappings stay). */
+    clearImported: () =>
+      update((s) => {
+        const next = { ...s };
+        delete next.imported;
+        return next;
+      }),
+    setImportMaxAge: (days: number) => update((s) => ({ ...s, settings: { ...(s.settings ?? {}), importMaxAgeDays: days } })),
+    flush,
+
     setTrafficLights: (on: boolean) => update((s) => ({ ...s, settings: { ...(s.settings ?? {}), trafficLights: on } })),
     setSmoothScoring: (on: boolean) => update((s) => ({ ...s, settings: { ...(s.settings ?? {}), smoothScoring: on } })),
     setMinCoverage: (pct: number) => update((s) => ({ ...s, settings: { ...(s.settings ?? {}), minCoverage: pct } })),

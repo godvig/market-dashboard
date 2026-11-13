@@ -2,8 +2,9 @@
 // "standard" columns come first; everything in "extra" sits to the right of a divider.
 import type { ReactNode } from "react";
 import { MANUAL_LEVELS, METRIC_BY_KEY, metricValue, rate, type ManualKey, type MetricKey, type Rating } from "../shared/metrics";
+import { isImportSource } from "../shared/importMerge";
 import { SCORECARDS, score, scoreBand, type ScoreOptions, type Scorecard } from "../shared/scoring";
-import type { StockMeta, WatchlistRow } from "../shared/types";
+import type { FundamentalKey, StockMeta, WatchlistRow } from "../shared/types";
 import { HorseIcon, investmentRank } from "./components/HorseIcon";
 import { fmtBig, fmtNum, fmtPct, sameCurrency, toBase, tone } from "./format";
 
@@ -62,13 +63,27 @@ export function formatMetric(key: MetricKey, v: number | null): string {
   }
 }
 
-/** A metric value with its traffic light. */
-export function MetricCell({ k, v, lights }: { k: MetricKey; v: number | null; lights: boolean }) {
+/** Where a key figure came from ("yahoo", "import: file.csv (2026-11-13)"), or undefined for computed metrics. */
+export const sourceOfValue = (r: WatchlistRow, key: MetricKey) => r.sources?.[key as FundamentalKey];
+
+/** Small marker for a value imported from a file; the tooltip names the file and date. */
+export function ImportedMark({ src }: { src?: string }) {
+  if (!isImportSource(src)) return null;
+  return (
+    <span className="imp-mark" title={`Imported – ${src}`} aria-label="imported">
+      i
+    </span>
+  );
+}
+
+/** A metric value with its traffic light, marked when it was imported from a file. */
+export function MetricCell({ k, v, lights, src }: { k: MetricKey; v: number | null; lights: boolean; src?: string }) {
   const cls = SIGNED.test(k) ? tone(v) : "";
   return (
     <span className="metric">
       {lights && <Light rating={rate(k, v)} />}
       <span className={cls}>{formatMetric(k, v)}</span>
+      {v != null && <ImportedMark src={src} />}
     </span>
   );
 }
@@ -83,7 +98,7 @@ const metricCol = (key: MetricKey, section: string, opts: Partial<ColumnDef> = {
     section,
     defaultOn: false,
     value: (r, ctx) => metricValue(sourceOf(r, ctx), key),
-    render: (r, ctx) => <MetricCell k={key} v={metricValue(sourceOf(r, ctx), key)} lights={ctx.trafficLights} />,
+    render: (r, ctx) => <MetricCell k={key} v={metricValue(sourceOf(r, ctx), key)} lights={ctx.trafficLights} src={sourceOfValue(r, key)} />,
     ...opts,
   };
 };
@@ -297,6 +312,7 @@ export const COLUMNS: ColumnDef[] = [
   },
 
   metricCol("roa", "Profitability"),
+  metricCol("roic", "Profitability"),
   metricCol("operatingMargin", "Profitability"),
   metricCol("ebitdaMargin", "Profitability"),
 

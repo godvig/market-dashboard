@@ -4,7 +4,18 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { normaliseInvestmentType } from "../shared/investmentTypes";
-import type { ListGroup, StockMeta, UserSettings, UserStore, Watchlist } from "../shared/types";
+import {
+  FUNDAMENTAL_KEYS,
+  type FundamentalKey,
+  type ImportedFigures,
+  type ImportMapping,
+  type ImportTarget,
+  type ListGroup,
+  type StockMeta,
+  type UserSettings,
+  type UserStore,
+  type Watchlist,
+} from "../shared/types";
 
 const DIR = path.resolve(process.env.DATA_DIR ?? "data");
 const FILE = path.join(DIR, "store.json");
@@ -72,6 +83,8 @@ export function parseStore(input: unknown): UserStore {
 
   const stocks = parseStocks(raw.stocks);
   const settings = parseSettings(raw.settings);
+  const imported = parseImported(raw.imported);
+  const importMappings = parseMappings(raw.importMappings);
 
   return {
     version: 2,
@@ -80,7 +93,53 @@ export function parseStore(input: unknown): UserStore {
     ...(columns ? { columns } : {}),
     ...(stocks ? { stocks } : {}),
     ...(settings ? { settings } : {}),
+    ...(imported ? { imported } : {}),
+    ...(importMappings ? { importMappings } : {}),
   };
+}
+
+const KEYS = new Set<string>(FUNDAMENTAL_KEYS);
+const TARGETS = new Set<string>([...FUNDAMENTAL_KEYS, "id.ticker", "id.name", "id.isin"]);
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Imported key figures: known keys only, finite numbers, a source and a date. */
+function parseImported(input: unknown): Record<string, ImportedFigures> | undefined {
+  if (!input || typeof input !== "object") return undefined;
+  const out: Record<string, ImportedFigures> = {};
+  for (const [sym, figs] of Object.entries(input as Record<string, unknown>).slice(0, 10_000)) {
+    if (!figs || typeof figs !== "object") continue;
+    const f: ImportedFigures = {};
+    for (const [k, v] of Object.entries(figs as Record<string, unknown>)) {
+      const o = (v ?? {}) as Record<string, unknown>;
+      if (!KEYS.has(k) || typeof o.v !== "number" || !Number.isFinite(o.v) || typeof o.at !== "string" || !DATE.test(o.at)) continue;
+      f[k as FundamentalKey] = { v: o.v, src: str(o.src, 160) || "import", at: o.at };
+    }
+    const key = sym.trim().toUpperCase().slice(0, 40);
+    if (key && Object.keys(f).length) out[key] = f;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+/** Saved column mappings, keyed by header hash. */
+function parseMappings(input: unknown): Record<string, ImportMapping> | undefined {
+  if (!input || typeof input !== "object") return undefined;
+  const out: Record<string, ImportMapping> = {};
+  for (const [hash, v] of Object.entries(input as Record<string, unknown>).slice(0, 50)) {
+    const o = (v ?? {}) as Record<string, unknown>;
+    if (!/^[0-9a-f]{1,16}$/.test(hash) || !Array.isArray(o.headers) || !Array.isArray(o.columns)) continue;
+    const headers = o.headers.slice(0, 300).map((h) => str(h, 120));
+    const columns = headers.map((_, i) => {
+      const c = (o.columns as unknown[])[i];
+      return typeof c === "string" && TARGETS.has(c) ? (c as ImportTarget) : null;
+    });
+    const scales: Record<number, number> = {};
+    for (const [i, f] of Object.entries((o.scales ?? {}) as Record<string, unknown>)) {
+      if (/^\d+$/.test(i) && typeof f === "number" && f > 0 && Number.isFinite(f)) scales[Number(i)] = f;
+    }
+    const suffix = typeof o.suffix === "string" && /^(\.[A-Z]{1,3})?$/.test(o.suffix) ? o.suffix : undefined;
+    out[hash] = { headers, columns, ...(Object.keys(scales).length ? { scales } : {}), ...(suffix != null ? { suffix } : {}) };
+  }
+  return Object.keys(out).length ? out : undefined;
 }
 
 function parseSettings(input: unknown): UserSettings | undefined {
@@ -90,6 +149,9 @@ function parseSettings(input: unknown): UserSettings | undefined {
   if (typeof o.trafficLights === "boolean") out.trafficLights = o.trafficLights;
   if (typeof o.smoothScoring === "boolean") out.smoothScoring = o.smoothScoring;
   if (typeof o.minCoverage === "number" && Number.isFinite(o.minCoverage)) out.minCoverage = Math.min(100, Math.max(0, Math.round(o.minCoverage)));
+  if (typeof o.importMaxAgeDays === "number" && Number.isFinite(o.importMaxAgeDays)) {
+    out.importMaxAgeDays = Math.min(3650, Math.max(1, Math.round(o.importMaxAgeDays)));
+  }
   return Object.keys(out).length ? out : undefined;
 }
 

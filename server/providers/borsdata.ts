@@ -8,6 +8,8 @@
 // Tickers: Börsdata's instrument list carries each stock's Yahoo symbol, so the
 // app keeps using Yahoo-style tickers (VOLV-B.ST) and maps them to Börsdata ids.
 import { createHash } from "node:crypto";
+import { borsdataToYahoo } from "../../shared/importMatch";
+import { median, scaleFromMedian } from "../../shared/importParse";
 import type { Candle, Fundamentals, HistoryRange, Quote, SearchResult } from "../../shared/types";
 import { cached } from "../cache";
 import { startDate, type MarketProvider } from "./types";
@@ -49,6 +51,7 @@ const KPI_NAMES: Partial<Record<keyof Fundamentals, string[]>> = {
   evEbitda: ["EV/EBITDA"],
   eps: ["Vinst/aktie", "EPS", "Earnings/Share"],
   roe: ["ROE", "Avkastning på eget kapital", "Return on Equity"],
+  roic: ["ROIC", "Avkastning på investerat kapital", "Return on Invested Capital"],
   roa: ["ROA", "Avkastning på totalt kapital", "Return on Assets"],
   profitMargin: ["Vinstmarginal", "Profit Margin"],
   operatingMargin: ["Rörelsemarginal", "EBIT-marginal", "Operating Margin", "EBIT Margin"],
@@ -76,15 +79,7 @@ const GROWTH_BASES: Record<"revenue" | "earnings" | "eps" | "ebitda" | "dividend
 const OPERATING_INCOME = ["Rörelseresultat", "EBIT", "Operating Income"];
 const GROWTH_PERIODS: [string, string][] = [["1year", "Growth"], ["3year", "Cagr3y"], ["5year", "Cagr5y"], ["10year", "Cagr10y"]];
 
-const PERCENT_KEYS = new Set<string>([
-  "dividendYield", "payoutRatio", "roe", "roa", "profitMargin", "operatingMargin", "ebitdaMargin", "fcfMargin", "equityRatio",
-]);
-
 const norm = (s?: string) => (s ?? "").toLowerCase().replace(/\s+/g, "");
-const median = (xs: number[]) => {
-  const s = xs.filter((x) => Number.isFinite(x) && x !== 0).map(Math.abs).sort((a, b) => a - b);
-  return s.length ? s[Math.floor(s.length / 2)] : 0;
-};
 
 export function borsdataProvider(apiKey: string, env: NodeJS.ProcessEnv = {}): MarketProvider {
   // Cache keys include a hash of the API key, so a new key never sees stale data.
@@ -130,7 +125,7 @@ export function borsdataProvider(apiKey: string, env: NodeJS.ProcessEnv = {}): M
       all.find((i) => i.yahoo?.toUpperCase() === s) ??
       all.find((i) => i.ticker?.toUpperCase() === s) ??
       // "VOLV-B.ST" → ticker "VOLV B"
-      all.find((i) => i.ticker?.toUpperCase().replace(/\s+/g, "-") === s.replace(/\.[A-Z]+$/, ""));
+      all.find((i) => i.ticker && borsdataToYahoo(i.ticker) === s.replace(/\.[A-Z]+$/, ""));
     if (!hit) throw new Error(`${symbol} not found in Börsdata`);
     return hit;
   }
@@ -196,13 +191,8 @@ export function borsdataProvider(apiKey: string, env: NodeJS.ProcessEnv = {}): M
       return typeof r.value?.n === "number" ? r.value.n : null;
     });
 
-  /** Börsdata may return percentages as fractions and market cap in millions; normalise. */
-  function scale(key: string, v: number, med: number): number {
-    const isPct = PERCENT_KEYS.has(key) || /Growth$|Cagr\d+y$/.test(key);
-    if (isPct && med > 0 && med < 1) return v * 100;
-    if (key === "marketCap" && med > 0 && med < 1e7) return v * 1e6;
-    return v;
-  }
+  /** Börsdata may return percentages as fractions and market cap in millions; normalise (same rule as file imports). */
+  const scale = (key: string, v: number, med: number) => v * scaleFromMedian(key, med);
 
   return {
     name: "borsdata",

@@ -46,4 +46,27 @@ describe("parseStore", () => {
     expect(() => parseStore({ lists: [{ id: "a", name: "", symbols: [] }] })).toThrow();
     expect(() => parseStore("nope")).toThrow();
   });
+  it("keeps imported figures and mappings, dropping anything malformed", () => {
+    const s = parseStore({
+      version: 2,
+      groups: [],
+      lists: [{ id: "a", name: "L", symbols: ["GNUG-B.ST"] }],
+      settings: { importMaxAgeDays: 90.4 },
+      imported: {
+        "gnug-b.st": {
+          pe: { v: 14.2, src: "import: s.csv", at: "2026-11-13" },
+          roe: { v: "21", src: "import: s.csv", at: "2026-11-13" }, // not a number
+          bogus: { v: 1, src: "x", at: "2026-11-13" }, // unknown key
+          pb: { v: 3.1, src: "import: s.csv", at: "yesterday" }, // bad date
+        },
+      },
+      importMappings: {
+        "1a2b3c4d": { headers: ["Bolag", "P/E", "X"], columns: ["id.name", "pe", "drop table"], scales: { 1: 100, x: 2 }, suffix: ".ST" },
+        "not-a-hash!": { headers: [], columns: [] },
+      },
+    });
+    expect(s.settings).toEqual({ importMaxAgeDays: 90 });
+    expect(s.imported).toEqual({ "GNUG-B.ST": { pe: { v: 14.2, src: "import: s.csv", at: "2026-11-13" } } });
+    expect(s.importMappings).toEqual({ "1a2b3c4d": { headers: ["Bolag", "P/E", "X"], columns: ["id.name", "pe", null], scales: { 1: 100 }, suffix: ".ST" } });
+  });
 });

@@ -35,7 +35,7 @@ export const FUNDAMENTAL_KEYS = [
   // valuation
   "pe", "forwardPe", "peg", "ps", "pb", "evEbit", "evEbitda", "marketCap", "eps",
   // profitability
-  "roe", "roa", "profitMargin", "operatingMargin", "ebitdaMargin", "fcfMargin",
+  "roe", "roa", "roic", "profitMargin", "operatingMargin", "ebitdaMargin", "fcfMargin",
   // balance sheet & risk
   "quickRatio", "debtToEquity", "equityRatio", "netDebtEbitda", "beta",
   // growth
@@ -84,6 +84,33 @@ export interface UserSettings {
   smoothScoring?: boolean;
   /** Percent (0–100) of a scorecard's points that must have data before a score is shown. Default 60. */
   minCoverage?: number;
+  /** Imported key figures older than this many days lose to the API. Default 120. */
+  importMaxAgeDays?: number;
+}
+
+/** One key figure imported from a file (e.g. a Börsdata screener export). */
+export interface ImportedValue {
+  v: number;
+  /** Where it came from: "import: <filename>". */
+  src: string;
+  /** Import date, YYYY-MM-DD. */
+  at: string;
+}
+
+export type ImportedFigures = Partial<Record<FundamentalKey, ImportedValue>>;
+
+/** What a file column holds: a key figure or a way to identify the company. */
+export type ImportTarget = FundamentalKey | "id.ticker" | "id.name" | "id.isin";
+
+/** A column mapping, saved per header set so the next export of the same screener imports in one click. */
+export interface ImportMapping {
+  headers: string[];
+  /** Per column (same order as `headers`); null = ignored. */
+  columns: (ImportTarget | null)[];
+  /** Scale factor per column index where the user overrode the detected one. */
+  scales?: Record<number, number>;
+  /** Exchange suffix for bare tickers ("VOLV B" → "VOLV-B" + suffix). */
+  suffix?: string;
 }
 
 /** Everything the user saves: categories, lists (in sidebar order) and table columns. */
@@ -96,6 +123,10 @@ export interface UserStore {
   /** Per-ticker data the user keeps (sector, notes, assessments). Never sent anywhere but the local server. */
   stocks?: Record<string, StockMeta>;
   settings?: UserSettings;
+  /** Key figures imported from files, per symbol. Kept apart from provider data and never sent anywhere but the local server. */
+  imported?: Record<string, ImportedFigures>;
+  /** Saved column mappings, keyed by a hash of the file's headers. */
+  importMappings?: Record<string, ImportMapping>;
 }
 
 export interface Candle {
@@ -142,6 +173,8 @@ export interface WatchlistRow {
   fx: number | null;
   /** Key figures merged from the providers (quote values fill the gaps). */
   fundamentals: Fundamentals;
+  /** Where each key figure came from: a provider name or "import: <file> (date)". */
+  sources?: Partial<Record<FundamentalKey, string>>;
   error?: string;
 }
 

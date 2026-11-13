@@ -6,3 +6,9 @@ dist
 .DS_Store
 data
 market-dashboard-import*.json
+# Screener exports are your own data (Börsdata: own analysis only), never commit them
+*.csv
+*.xlsx
+*.xls
+*.ods
+!docs/examples/*.csv

@@ -1,5 +1,8 @@
 import { useRef, useState } from "react";
+import { decodeText, readTable } from "../../shared/importFile";
+import type { Cell } from "../../shared/importParse";
 import type { ListGroup, Watchlist } from "../../shared/types";
+import { IS_DEMO } from "../api";
 import { isImportBundle, type ImportBundle } from "../useStore";
 
 interface Props {
@@ -12,10 +15,12 @@ interface Props {
   onDelete: () => void;
   onImport: (lists: Watchlist[]) => void;
   onImportBundle: (bundle: ImportBundle) => void;
+  /** A CSV/XLSX table of key figures, for the import dialog. */
+  onImportTable: (fileName: string, table: Cell[][]) => void;
 }
 
 /** Title and actions for the open watchlist. */
-export function ListHeader({ list, group, canDelete, allLists, onRename, onDuplicate, onDelete, onImport, onImportBundle }: Props) {
+export function ListHeader({ list, group, canDelete, allLists, onRename, onDuplicate, onDelete, onImport, onImportBundle, onImportTable }: Props) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [confirm, setConfirm] = useState(false);
@@ -36,9 +41,19 @@ export function ListHeader({ list, group, canDelete, allLists, onRename, onDupli
     URL.revokeObjectURL(a.href);
   };
 
+  /** JSON = lists or an import bundle; anything else is a table of key figures (CSV, XLSX…), told apart by content. */
   const importFile = async (file: File) => {
     try {
-      const data = JSON.parse(await file.text());
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const { kind, table } = await readTable(bytes, file.name);
+      const looksJson = kind === "csv" && /^\s*[[{]/.test(decodeText(bytes.slice(0, 64)));
+      if (!looksJson) {
+        if (table.length < 2) throw new Error("The file has no rows to import");
+        onImportTable(file.name, table);
+        setImportError(undefined);
+        return;
+      }
+      const data = JSON.parse(decodeText(bytes));
       if (isImportBundle(data)) {
         onImportBundle(data);
         setImportError(undefined);
@@ -103,13 +118,27 @@ export function ListHeader({ list, group, canDelete, allLists, onRename, onDupli
             <button onClick={exportLists} title="Download all lists as a JSON file">
               Export
             </button>
-            <button onClick={() => fileInput.current?.click()} title="Add lists from an exported JSON file or an import file (e.g. from your spreadsheet)">
+            <button
+              onClick={() => fileInput.current?.click()}
+              title="Lists from an exported JSON file, or key figures from a CSV/Excel file (e.g. a Börsdata screener export)"
+            >
               Import
             </button>
+            {IS_DEMO && (
+              <button
+                onClick={async () => {
+                  const { default: csv } = await import("../../docs/examples/borsdata-screener-sample.csv?raw");
+                  onImportTable("borsdata-screener-sample.csv", (await readTable(new TextEncoder().encode(csv), "sample.csv")).table);
+                }}
+                title="Open the import dialog with a made-up screener export (docs/examples/borsdata-screener-sample.csv)"
+              >
+                Try sample import
+              </button>
+            )}
             <input
               ref={fileInput}
               type="file"
-              accept="application/json,.json"
+              accept="application/json,.json,.csv,text/csv,.txt,.xlsx,.xls,.ods"
               hidden
               onChange={(e) => {
                 const f = e.target.files?.[0];

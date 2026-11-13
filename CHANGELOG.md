@@ -2,6 +2,20 @@
 
 Notable changes, newest first.
 
+## 2026-11-13 – Import key figures from a file
+
+- **Import key figures from CSV or Excel**, for example a Börsdata screener export, through the existing *Import* button (the file type is read from the content). Bring your own data: no API key needed, nothing is redistributed.
+- **Column mapping dialog.** Headers are matched to key figures with a Swedish/English synonym table (`shared/importSynonyms.ts`); change or remove any mapping and choose the identifier column (ticker, name or ISIN). A preview shows the first five rows after conversion.
+- **Numbers and scales.** Decimal comma, spaces and non-breaking spaces as thousands separators, `%`, `-`/`n/a`/empty as missing. Percentages as fractions and market cap in MSEK are detected per column, with the same rule as the Börsdata API provider, and can be overridden.
+- **Matching.** By ticker (`VOLV B` → `VOLV-B.ST`), exact name, then similar name (never across share classes). Unmatched rows can be skipped, searched for or added under the file's ticker, optionally into a new list.
+- **Remembered mappings.** The mapping is saved per header set, so the next export from the same screener imports in one click.
+- **Storage and precedence.** Imported figures are saved per stock with file name and date, apart from provider data. They override the API until they are older than a chosen limit (default 120 days); after that the API wins and imports only fill gaps.
+- **Sources shown.** The score breakdown has a *Källa* column with each value's source, and imported values carry a small **i** in the table. Data coverage in the column picker includes imported values.
+- **Demo.** Works on GitHub Pages with `localStorage`; *Try sample import* opens the made-up `docs/examples/borsdata-screener-sample.csv`.
+- New key figure **ROIC**, from imports and from Börsdata's API.
+- SheetJS (`xlsx` 0.20.3 from cdn.sheetjs.com) reads spreadsheets. It loads only when a spreadsheet is opened.
+- `.gitignore` ignores `.csv`/`.xlsx` exports outside `docs/examples/`.
+
 ## 2026-11-13
 
 - Round app icon: a score ring, in the same ring style as the other godvig.com sites.

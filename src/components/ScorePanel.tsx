@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { MANUAL_LEVELS, type ManualKey } from "../../shared/metrics";
+import { MANUAL_LEVELS, type ManualKey, type MetricKey } from "../../shared/metrics";
 import { SCORECARDS, score, scoreBand } from "../../shared/scoring";
 import type { WatchlistRow } from "../../shared/types";
-import { formatMetric, sourceOf, type Ctx } from "../columns";
+import { isImportSource } from "../../shared/importMerge";
+import { formatMetric, ImportedMark, sourceOf, sourceOfValue, type Ctx } from "../columns";
 
 interface Props {
   row: WatchlistRow;
@@ -19,6 +20,13 @@ const fmtPts = (n: number) => {
 export function ScorePanel({ row, ctx, onAssess }: Props) {
   const [open, setOpen] = useState<string | null>("sundhet");
   const src = sourceOf(row, ctx);
+  /** Where a criterion's value came from: provider, imported file, computed from prices or your own assessment. */
+  const origin = (metric: MetricKey, hasValue: boolean) => {
+    if (!hasValue) return "";
+    if (metric.startsWith("manual.")) return "egen bedömning";
+    if (metric in row.metrics) return "beräknad från kurser";
+    return sourceOfValue(row, metric) ?? "";
+  };
 
   return (
     <div className="scores">
@@ -53,6 +61,7 @@ export function ScorePanel({ row, ctx, onAssess }: Props) {
                       <th>Värde</th>
                       <th className="left">Nivå</th>
                       <th>Poäng</th>
+                      <th className="left">Källa</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -76,7 +85,10 @@ export function ScorePanel({ row, ctx, onAssess }: Props) {
                                 ))}
                               </select>
                             ) : (
-                              formatMetric(d.criterion.metric, d.value)
+                              <>
+                                {formatMetric(d.criterion.metric, d.value)}
+                                {d.value != null && <ImportedMark src={sourceOfValue(row, d.criterion.metric)} />}
+                              </>
                             )}
                           </td>
                           <td className="left muted">{d.value == null ? "saknas" : (d.tier?.label ?? "")}</td>
@@ -88,6 +100,9 @@ export function ScorePanel({ row, ctx, onAssess }: Props) {
                                 {fmtPts(d.points)} / {fmtPts(d.max)}
                               </span>
                             )}
+                          </td>
+                          <td className={`left small source ${isImportSource(origin(d.criterion.metric, d.value != null)) ? "imported" : "muted"}`}>
+                            {origin(d.criterion.metric, d.value != null)}
                           </td>
                         </tr>
                       );

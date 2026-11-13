@@ -2,9 +2,11 @@
 // the mock provider, so the app can be hosted as static files (GitHub Pages).
 // Lists are saved in the visitor's own browser (localStorage) by useStore.
 import { computeMetrics, emptyMetrics } from "../shared/analysis";
+import { mergeImported } from "../shared/importMerge";
 import {
   FUNDAMENTAL_KEYS,
   type Candle,
+  type FundamentalKey,
   type Fundamentals,
   type Health,
   type HistoryRange,
@@ -51,7 +53,19 @@ const DEMO_STORE: UserStore = {
   ],
 };
 
-async function row(symbol: string): Promise<WatchlistRow> {
+const STORE_KEY = "market-dashboard.store";
+
+/** The visitor's saved store (useStore writes it on every change). */
+function savedStore(): UserStore | null {
+  try {
+    const saved = localStorage.getItem(STORE_KEY);
+    return saved ? (JSON.parse(saved) as UserStore) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function row(symbol: string, store: UserStore | null): Promise<WatchlistRow> {
   try {
     const [q] = await mockProvider.getQuotes([symbol]);
     if (!q) throw new Error(`${symbol} not found`);
@@ -70,11 +84,16 @@ async function row(symbol: string): Promise<WatchlistRow> {
       const v = (q as unknown as Record<string, unknown>)[k];
       if (typeof v === "number") fromQuote[k] = v;
     }
+    // Same order as the server: made-up figures first, then anything imported from a file.
+    const api = { ...defined(fromQuote), ...defined(main) };
+    const sources = Object.fromEntries(Object.keys(api).map((k) => [k, "demo"])) as Partial<Record<FundamentalKey, string>>;
+    const merged = mergeImported(api, sources, store?.imported?.[symbol], store?.settings?.importMaxAgeDays);
     return {
       quote,
       metrics: history.length ? computeMetrics(history, RISK_FREE) : emptyMetrics,
       fx: RATES[quote.currency] ?? null,
-      fundamentals: { ...defined(fromQuote), ...defined(main) },
+      fundamentals: merged.fundamentals,
+      sources: merged.sources,
     };
   } catch (err) {
     const blank: Quote = { symbol, name: symbol, currency: "", price: NaN, change: NaN, changePct: NaN };
@@ -84,7 +103,10 @@ async function row(symbol: string): Promise<WatchlistRow> {
 
 export const demoApi = {
   health: async (): Promise<Health> => ({ provider: "demo", fallback: "demo", baseCurrency: "SEK" }),
-  watchlist: (symbols: string[]): Promise<WatchlistRow[]> => Promise.all(symbols.map(row)),
+  watchlist: (symbols: string[]): Promise<WatchlistRow[]> => {
+    const store = savedStore();
+    return Promise.all(symbols.map((s) => row(s, store)));
+  },
   history: (symbol: string, range: HistoryRange): Promise<Candle[]> => mockProvider.getHistory!(symbol, range),
   search: async (q: string): Promise<SearchResult[]> => {
     const hits = await mockProvider.search!(q);
@@ -95,14 +117,6 @@ export const demoApi = {
       : hits;
   },
   // Nothing on a server: useStore falls back to the copy in this browser, or the demo setup.
-  getStore: async (): Promise<UserStore | null> => {
-    try {
-      const saved = localStorage.getItem("market-dashboard.store");
-      if (saved) return JSON.parse(saved) as UserStore;
-    } catch {
-      /* use the demo setup */
-    }
-    return DEMO_STORE;
-  },
+  getStore: async (): Promise<UserStore | null> => savedStore() ?? DEMO_STORE,
   saveStore: async (store: UserStore): Promise<UserStore> => store,
 };

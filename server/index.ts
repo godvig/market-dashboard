@@ -2,7 +2,16 @@ import "dotenv/config";
 import express from "express";
 import path from "node:path";
 import { computeMetrics, emptyMetrics } from "../shared/analysis";
-import { FUNDAMENTAL_KEYS, type Fundamentals, type HistoryRange, type Quote, type WatchlistRow } from "../shared/types";
+import { DEFAULT_IMPORT_MAX_AGE_DAYS, mergeImported, type Merged } from "../shared/importMerge";
+import {
+  FUNDAMENTAL_KEYS,
+  type FundamentalKey,
+  type Fundamentals,
+  type HistoryRange,
+  type ImportedFigures,
+  type Quote,
+  type WatchlistRow,
+} from "../shared/types";
 import { cached, isFresh, mapLimit, seed } from "./cache";
 import { createFx } from "./fx";
 import { createProviders } from "./providers";
@@ -67,9 +76,11 @@ const defined = (f: Fundamentals): Fundamentals =>
 
 /**
  * Key figures: primary provider first, gaps filled from the fallback and
- * finally from the quote itself. Cached as long as price history.
+ * finally from the quote itself (cached as long as price history). Then
+ * figures imported from a file override those, unless the import is older
+ * than `maxAgeDays` (see shared/importMerge.ts).
  */
-async function fundamentals(symbol: string, q: Quote): Promise<Fundamentals> {
+async function fundamentals(symbol: string, q: Quote, imported: ImportedFigures | undefined, maxAgeDays: number): Promise<Merged> {
   const get = (p: MarketProvider) =>
     p.getFundamentals
       ? cached(`fundamentals:${symbol}:${p.name}`, HISTORY_TTL, () => p.getFundamentals!(symbol)).catch(() => ({}))
@@ -80,11 +91,20 @@ async function fundamentals(symbol: string, q: Quote): Promise<Fundamentals> {
     const v = (q as unknown as Record<string, unknown>)[k];
     if (typeof v === "number") fromQuote[k] = v;
   }
-  return { ...defined(fromQuote), ...defined(extra), ...defined(main) };
+  const layers: [Fundamentals, string][] = [[defined(fromQuote), q.source ?? primary.name], [defined(extra), fallback.name], [defined(main), primary.name]];
+  const merged: Fundamentals = {};
+  const sources: Partial<Record<FundamentalKey, string>> = {};
+  for (const [f, name] of layers) {
+    for (const [k, v] of Object.entries(f) as [FundamentalKey, number][]) {
+      merged[k] = v;
+      sources[k] = name;
+    }
+  }
+  return mergeImported(merged, sources, imported, maxAgeDays);
 }
 
 const app = express();
-app.use(express.json({ limit: "500kb" }));
+app.use(express.json({ limit: "8mb" })); // imported key figures for a few thousand stocks fit
 
 app.get("/api/health", (_req, res) => {
   res.json({ provider: primary.name, fallback: fallback.name, baseCurrency: fx.base });
@@ -123,16 +143,18 @@ async function prefetchQuotes(symbols: string[]) {
 // Quote + computed metrics + key figures for each symbol; one failing symbol doesn't break the list.
 app.get("/api/watchlist", async (req, res) => {
   const symbols = parseSymbols(req.query.symbols);
-  await prefetchQuotes(symbols);
+  const [store] = await Promise.all([readStore(), prefetchQuotes(symbols)]);
+  const maxAge = store?.settings?.importMaxAgeDays ?? DEFAULT_IMPORT_MAX_AGE_DAYS;
   const rows = await mapLimit(symbols, 6, async (symbol): Promise<WatchlistRow> => {
     try {
       const q = await quote(symbol);
       const [h, f, rate] = await Promise.all([
         history(symbol, "1y").catch(() => []),
-        fundamentals(symbol, q),
+        fundamentals(symbol, q, store?.imported?.[symbol], maxAge),
         fx.rate(q.currency),
       ]);
-      return { quote: q, metrics: h.length ? computeMetrics(h, RISK_FREE) : emptyMetrics, fx: rate, fundamentals: f };
+      const metrics = h.length ? computeMetrics(h, RISK_FREE) : emptyMetrics;
+      return { quote: q, metrics, fx: rate, fundamentals: f.fundamentals, sources: f.sources };
     } catch (err) {
       const blank: Quote = { symbol, name: symbol, currency: "", price: NaN, change: NaN, changePct: NaN };
       return { quote: blank, metrics: emptyMetrics, fx: null, fundamentals: {}, error: (err as Error).message };

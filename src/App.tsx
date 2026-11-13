@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Ctx } from "./columns";
+import type { KnownStock } from "../shared/importMatch";
+import type { Cell } from "../shared/importParse";
+import { DEFAULT_IMPORT_MAX_AGE_DAYS } from "../shared/importMerge";
 import type { WatchlistRow } from "../shared/types";
 import { api, IS_DEMO } from "./api";
 import { AddSymbol } from "./components/AddSymbol";
 import { ColumnPicker } from "./components/ColumnPicker";
 import { DetailPanel } from "./components/DetailPanel";
 import { FixTicker } from "./components/FixTicker";
+import { ImportDialog } from "./components/ImportDialog";
 import { ListHeader } from "./components/ListHeader";
 import { Sidebar } from "./components/Sidebar";
 import { WatchlistTable } from "./components/WatchlistTable";
@@ -25,7 +29,10 @@ export function App() {
   const [updated, setUpdated] = useState<Date>();
   const [progress, setProgress] = useState<string>();
   const [fixing, setFixing] = useState<string>();
+  const [importing, setImporting] = useState<{ fileName: string; table: Cell[][] }>();
   const loadId = useRef(0);
+  /** Company names seen this session, so imported rows can be matched by name. */
+  const seenNames = useRef(new Map<string, string>());
 
   useEffect(() => {
     api
@@ -78,6 +85,15 @@ export function App() {
   }, [symbolKey]);
 
   useEffect(refresh, [refresh]);
+
+  useEffect(() => {
+    for (const r of rows) if (!r.error && r.quote.name) seenNames.current.set(r.quote.symbol, r.quote.name);
+  }, [rows]);
+  const known = useMemo((): KnownStock[] => {
+    if (!importing || !store) return [];
+    const symbols = new Set(store.lists.flatMap((l) => l.symbols));
+    return [...symbols].map((symbol) => ({ symbol, name: store.stocks?.[symbol]?.name ?? seenNames.current.get(symbol) }));
+  }, [importing, store]);
 
   const listId = list?.id;
   const { removeSymbol } = s;
@@ -182,7 +198,36 @@ export function App() {
                 const id = s.importBundle(b);
                 if (id) go(id);
               }}
+              onImportTable={(fileName, table) => setImporting({ fileName, table })}
             />
+            {importing && (
+              <ImportDialog
+                fileName={importing.fileName}
+                table={importing.table}
+                known={known}
+                savedMappings={store.importMappings}
+                maxAgeDays={store.settings?.importMaxAgeDays ?? DEFAULT_IMPORT_MAX_AGE_DAYS}
+                onMaxAge={async (days) => {
+                  s.setImportMaxAge(days);
+                  await s.flush();
+                  refresh();
+                }}
+                importedCount={Object.keys(store.imported ?? {}).length}
+                onClearImported={async () => {
+                  s.clearImported();
+                  await s.flush();
+                  refresh();
+                }}
+                onClose={() => setImporting(undefined)}
+                onImport={async (imp) => {
+                  const id = s.importFigures(imp);
+                  setImporting(undefined);
+                  await s.flush(); // the server merges imported figures into the rows, so save first
+                  if (id) go(id);
+                  else refresh();
+                }}
+              />
+            )}
             {fixing && (
               <FixTicker
                 symbol={fixing}
