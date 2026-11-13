@@ -149,7 +149,8 @@ app.get("/api/watchlist", async (req, res) => {
     try {
       const q = await quote(symbol);
       const [h, f, rate] = await Promise.all([
-        history(symbol, "1y").catch(() => []),
+        // 5 years so Sharpe can use three; every other metric looks at the last year at most.
+        history(symbol, "5y").catch(() => []),
         fundamentals(symbol, q, store?.imported?.[symbol], maxAge),
         fx.rate(q.currency),
       ]);

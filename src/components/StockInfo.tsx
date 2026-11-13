@@ -32,12 +32,12 @@ export function StockInfo({ symbol, meta, usedTypes = [], onChange, onAssess }: 
   return (
     <div className="stock-info">
       <div className="info-row">
-        {field("sector", "Industri/Sektor")}
-        {field("niche", "Nisch/Bransch")}
-        {field("country", "Land")}
+        {field("sector", "Sector")}
+        {field("niche", "Niche")}
+        {field("country", "Country")}
         <label className="info-field">
           <span>
-            Investeringstyp <HorseIcon type={meta?.investmentType} size={14} />
+            Investment type <HorseIcon type={meta?.investmentType} size={14} />
           </span>
           <TypePicker
             key={`${symbol}-type`}
@@ -48,10 +48,10 @@ export function StockInfo({ symbol, meta, usedTypes = [], onChange, onAssess }: 
         </label>
       </div>
       <label className="info-field note">
-        <span>Anteckningar</span>
+        <span>Notes</span>
         <textarea
           value={note}
-          placeholder="Dina tankar om bolaget…"
+          placeholder="Your thoughts on the company…"
           rows={4}
           onChange={(e) => setNote(e.target.value)}
           onBlur={() => note !== (meta?.note ?? "") && onChange({ note })}
@@ -63,9 +63,9 @@ export function StockInfo({ symbol, meta, usedTypes = [], onChange, onAssess }: 
           const v = meta?.assessments?.[k];
           return (
             <label key={k} className="info-field" title={def?.description}>
-              <span>{def?.sv ?? k}</span>
+              <span>{def?.label ?? k}</span>
               <select value={v ?? ""} onChange={(e) => onAssess(k, e.target.value === "" ? null : Number(e.target.value))}>
-                <option value="">Ej bedömd</option>
+                <option value="">Not assessed</option>
                 {MANUAL_LEVELS[k].map((label, i) => (
                   <option key={i} value={i}>
                     {label}
@@ -76,7 +76,7 @@ export function StockInfo({ symbol, meta, usedTypes = [], onChange, onAssess }: 
           );
         })}
       </div>
-      <p className="muted small">Sparas bara lokalt på din dator (data/store.json).</p>
+      <p className="muted small">Saved only on your own computer (data/store.json).</p>
     </div>
   );
 }
@@ -89,7 +89,7 @@ function TypePicker({ value, usedTypes, onChange }: { value: string; usedTypes: 
   const [draft, setDraft] = useState("");
   const known = new Set(KNOWN_TYPES.map((t) => t.toLowerCase()));
   const own = [...new Set([...usedTypes, value].map((t) => t.trim()).filter((t) => t && !known.has(t.toLowerCase())))].sort((a, b) =>
-    a.localeCompare(b, "sv"),
+    a.localeCompare(b, "en"),
   );
 
   const save = () => {
@@ -105,7 +105,7 @@ function TypePicker({ value, usedTypes, onChange }: { value: string; usedTypes: 
           autoFocus
           value={draft}
           maxLength={40}
-          placeholder="Egen typ, t.ex. Dark horse"
+          placeholder="Your own type, e.g. Dark horse"
           onChange={(e) => setDraft(e.target.value)}
           onBlur={save}
           onKeyDown={(e) => {
@@ -126,8 +126,8 @@ function TypePicker({ value, usedTypes, onChange }: { value: string; usedTypes: 
         } else onChange(e.target.value);
       }}
     >
-      <option value="">– Ingen –</option>
-      <optgroup label="Hästar">
+      <option value="">– None –</option>
+      <optgroup label="Horses">
         {KNOWN_TYPES.map((t) => (
           <option key={t} value={t}>
             {t}
@@ -135,7 +135,7 @@ function TypePicker({ value, usedTypes, onChange }: { value: string; usedTypes: 
         ))}
       </optgroup>
       {own.length > 0 && (
-        <optgroup label="Egna">
+        <optgroup label="Your own">
           {own.map((t) => (
             <option key={t} value={t}>
               {t}
@@ -143,7 +143,7 @@ function TypePicker({ value, usedTypes, onChange }: { value: string; usedTypes: 
           ))}
         </optgroup>
       )}
-      <option value={CUSTOM}>Egen typ…</option>
+      <option value={CUSTOM}>Your own type…</option>
     </select>
   );
 }

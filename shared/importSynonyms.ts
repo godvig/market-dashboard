@@ -52,6 +52,7 @@ export const IMPORT_SYNONYMS: Partial<Record<ImportTarget, string[]>> = {
   pb: ["P/B", "PB", "P/B-tal", "P/EK", "Price/Book"],
   evEbit: ["EV/EBIT"],
   evEbitda: ["EV/EBITDA"],
+  fcfYield: ["FCF-avkastning", "FCF-yield", "FCF yield", "FCF Yield", "Free Cash Flow Yield"],
   marketCap: ["Börsvärde", "Marknadsvärde", "Market Cap", "Market Capitalization"],
   eps: ["Vinst/aktie", "Vinst per aktie", "EPS", "Earnings/Share", "Earnings per Share"],
 

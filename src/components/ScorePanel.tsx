@@ -13,7 +13,7 @@ interface Props {
 
 const fmtPts = (n: number) => {
   const r = Math.round(n * 10) / 10;
-  return Number.isInteger(r) ? String(r) : r.toFixed(1).replace(".", ",");
+  return Number.isInteger(r) ? String(r) : r.toFixed(1);
 };
 
 /** Every scorecard for one stock, each expandable into its criteria. */
@@ -23,8 +23,8 @@ export function ScorePanel({ row, ctx, onAssess }: Props) {
   /** Where a criterion's value came from: provider, imported file, computed from prices or your own assessment. */
   const origin = (metric: MetricKey, hasValue: boolean) => {
     if (!hasValue) return "";
-    if (metric.startsWith("manual.")) return "egen bedömning";
-    if (metric in row.metrics) return "beräknad från kurser";
+    if (metric.startsWith("manual.")) return "your assessment";
+    if (metric in row.metrics) return "calculated from prices";
     return sourceOfValue(row, metric) ?? "";
   };
 
@@ -40,7 +40,7 @@ export function ScorePanel({ row, ctx, onAssess }: Props) {
               <span className="score-name">
                 <strong>{card.name}</strong>
                 <small className="muted">
-                  {fmtPts(s.points)} av {fmtPts(s.max)} p · {s.covered}/{s.total} mått ({Math.round(s.coverage * 100)} % av poängen) · {card.origin}
+                  {fmtPts(s.points)} of {fmtPts(s.max)} pts · {s.covered}/{s.total} metrics ({Math.round(s.coverage * 100)} % of the points) · {card.origin}
                 </small>
               </span>
               <span className="caret">{isOpen ? "▾" : "▸"}</span>
@@ -50,18 +50,18 @@ export function ScorePanel({ row, ctx, onAssess }: Props) {
                 <p className="muted small">{card.description}</p>
                 {s.rawPct != null && !s.sufficient && (
                   <p className="thin-note small">
-                    För lite data för en poäng: måtten nedan täcker {Math.round(s.coverage * 100)} % av poängen, och minst{" "}
-                    {Math.round((ctx.scoring.minCoverage ?? 0.6) * 100)} % krävs. På de mått som finns blir det {s.rawPct}.
+                    Too little data for a score: the metrics below cover {Math.round(s.coverage * 100)} % of the points, and at least{" "}
+                    {Math.round((ctx.scoring.minCoverage ?? 0.6) * 100)} % is needed. On the metrics that are there it would be {s.rawPct}.
                   </p>
                 )}
                 <table className="breakdown">
                   <thead>
                     <tr>
-                      <th className="left">Mått</th>
-                      <th>Värde</th>
-                      <th className="left">Nivå</th>
-                      <th>Poäng</th>
-                      <th className="left">Källa</th>
+                      <th className="left">Metric</th>
+                      <th>Value</th>
+                      <th className="left">Tier</th>
+                      <th>Points</th>
+                      <th className="left">Source</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -77,7 +77,7 @@ export function ScorePanel({ row, ctx, onAssess }: Props) {
                                 value={d.value ?? ""}
                                 onChange={(e) => onAssess(manual, e.target.value === "" ? null : Number(e.target.value))}
                               >
-                                <option value="">Ej bedömd</option>
+                                <option value="">Not assessed</option>
                                 {MANUAL_LEVELS[manual].map((label, i) => (
                                   <option key={i} value={i}>
                                     {label}
@@ -91,7 +91,7 @@ export function ScorePanel({ row, ctx, onAssess }: Props) {
                               </>
                             )}
                           </td>
-                          <td className="left muted">{d.value == null ? "saknas" : (d.tier?.label ?? "")}</td>
+                          <td className="left muted">{d.value == null ? "missing" : (d.tier?.label ?? "")}</td>
                           <td>
                             {d.points == null ? (
                               <span className="muted">– / {fmtPts(d.max)}</span>

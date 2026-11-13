@@ -94,12 +94,14 @@ export function ytdReturn(candles: Candle[]): number | null {
 }
 
 /**
- * Sharpe ratio over the last year: (annualised return − risk-free rate) /
- * annualised volatility. `riskFree` in percent, e.g. 2 = 2 %.
+ * Sharpe ratio over the last three years (or as many as there are, at least
+ * one): (annualised return − risk-free rate) / annualised volatility.
+ * One year mostly measures last year's price move; three is steadier.
+ * `riskFree` in percent, e.g. 2 = 2 %.
  */
-export function sharpe(closes: number[], riskFree = 2, lookback = TRADING_DAYS): number | null {
+export function sharpe(closes: number[], riskFree = 2, lookback = 3 * TRADING_DAYS): number | null {
   const slice = closes.slice(-(lookback + 1));
-  if (slice.length < 60) return null;
+  if (slice.length < TRADING_DAYS) return null;
   const rets: number[] = [];
   for (let i = 1; i < slice.length; i++) rets.push(slice[i] / slice[i - 1] - 1);
   const mean = rets.reduce((a, b) => a + b, 0) / rets.length;

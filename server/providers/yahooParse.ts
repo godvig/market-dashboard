@@ -18,6 +18,11 @@ export function fromSummary(res: Obj): Fundamentals {
   const k = (res.defaultKeyStatistics ?? {}) as Obj;
   const f = (res.financialData ?? {}) as Obj;
   const de = num(f.debtToEquity);
+  // Net debt / EBITDA: meaningless when EBITDA is zero or negative.
+  const ebitda = num(f.ebitda);
+  const netDebt = num(f.totalDebt) != null ? num(f.totalDebt)! - (num(f.totalCash) ?? 0) : undefined;
+  // FCF yield only when cash flow and market cap are in the same currency (not true for some ADRs).
+  const sameCurrency = !f.financialCurrency || !s.currency || f.financialCurrency === s.currency;
   return {
     // Forward yield if Yahoo has one, otherwise trailing.
     dividendYield: toPct(s.dividendYield ?? s.trailingAnnualDividendYield),
@@ -37,6 +42,8 @@ export function fromSummary(res: Obj): Fundamentals {
     operatingMargin: toPct(f.operatingMargins),
     ebitdaMargin: toPct(f.ebitdaMargins),
     fcfMargin: toPct(ratio(f.freeCashflow, f.totalRevenue)),
+    fcfYield: sameCurrency ? toPct(ratio(f.freeCashflow, s.marketCap)) : undefined,
+    netDebtEbitda: ebitda != null && ebitda > 0 && netDebt != null ? netDebt / ebitda : undefined,
     quickRatio: num(f.quickRatio),
     // Yahoo gives total debt / equity in percent; replaced below by total liabilities / equity when available.
     debtToEquity: de != null ? de / 100 : undefined,
@@ -84,7 +91,31 @@ export function fromAnnual(rows: Obj[]): Fundamentals {
   }
   const latestFcf = [...byYear.entries()].sort((a, b) => b[0] - a[0]).find(([, r]) => num(r.freeCashFlow) != null && num(r.totalRevenue) != null)?.[1];
   if (latestFcf) out.fcfMargin = toPct(ratio(latestFcf.freeCashFlow, latestFcf.totalRevenue));
+  const roic = returnOnInvestedCapital(byYear);
+  if (roic != null) out.roic = roic;
   return out;
+}
+
+/**
+ * ROIC for the latest year with an operating result: EBIT after tax /
+ * invested capital (equity + debt − cash). Uses Yahoo's tax rate, else 20 %.
+ */
+function returnOnInvestedCapital(byYear: Map<number, Obj>): number | undefined {
+  for (const [, r] of [...byYear.entries()].sort((a, b) => b[0] - a[0])) {
+    const ebit = num(r.EBIT) ?? num(r.operatingIncome);
+    if (ebit == null) continue;
+    const invested =
+      num(r.investedCapital) ??
+      (() => {
+        const eq = num(r.stockholdersEquity ?? r.commonStockEquity);
+        return eq != null ? eq + (num(r.totalDebt) ?? 0) - (num(r.cashAndCashEquivalents) ?? 0) : undefined;
+      })();
+    if (invested == null || invested <= 0) return undefined;
+    const tax = num(r.taxRateForCalcs);
+    const rate = tax != null && tax >= 0 && tax < 0.6 ? tax : 0.2;
+    return toPct((ebit * (1 - rate)) / invested);
+  }
+  return undefined;
 }
 
 /** Dividend events from chart(): growth over 1/3/5/10 years and the track record. */

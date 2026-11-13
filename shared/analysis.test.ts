@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { maxDrawdown, periodReturn, rsi, sma, smaSeries, volatility, ytdReturn } from "./analysis";
+import { maxDrawdown, periodReturn, rsi, sharpe, sma, smaSeries, volatility, ytdReturn } from "./analysis";
 
 describe("analysis", () => {
   it("periodReturn", () => {
@@ -33,5 +33,22 @@ describe("analysis", () => {
   it("ytdReturn uses previous year's last close", () => {
     const c = (time: string, close: number) => ({ time, open: close, high: close, low: close, close, volume: 0 });
     expect(ytdReturn([c("2025-12-30", 90), c("2025-12-31", 100), c("2026-01-02", 105), c("2026-03-01", 110)])).toBeCloseTo(10);
+  });
+});
+
+describe("sharpe", () => {
+  // Steady 10 %/year growth with small wiggles, so volatility is not zero.
+  const series = (days: number, perYear = 0.1) =>
+    Array.from({ length: days }, (_, i) => 100 * (1 + perYear) ** (i / 252) * (1 + (i % 2 ? 0.002 : -0.002)));
+
+  it("needs at least a year of prices", () => {
+    expect(sharpe(series(200))).toBeNull();
+    expect(sharpe(series(300))).not.toBeNull();
+  });
+
+  it("looks at the last three years, not further back", () => {
+    const crash = [...series(400, -0.5), ...series(3 * 252 + 1).map((v) => v * 0.3)];
+    const clean = series(3 * 252 + 1);
+    expect(sharpe(crash)).toBeCloseTo(sharpe(clean)!, 6);
   });
 });

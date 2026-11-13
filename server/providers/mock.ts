@@ -110,6 +110,8 @@ export const mockProvider: MarketProvider = {
       operatingMargin: pick(-5, 30) + q * 5,
       ebitdaMargin: pick(0, 35) + q * 5,
       fcfMargin: pick(-8, 25),
+      fcfYield: pick(-2, 9, 2),
+      roic: pick(-3, 28) + q * 6,
       quickRatio: pick(0.4, 2.5, 2),
       debtToEquity: pick(0.1, 2.8, 2),
       equityRatio: pick(15, 70),

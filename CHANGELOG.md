@@ -2,6 +2,26 @@
 
 Notable changes, newest first.
 
+## 2026-11-13 – English interface, sharper metrics
+
+### Interface
+
+- **English everywhere**: tabs (*Overview*, *Scores*, *My notes*), score breakdown, own assessments and their levels, the ticker fixer, the investment-type picker, metric descriptions and tooltips. Scorecard names stay Swedish (*Sundhet*, *Utdelning* …); the README has a glossary.
+- Numbers use a decimal point (`1.5`, `12,345`) instead of a decimal comma.
+- Metric tooltips show the Swedish name as a glossary, so Börsdata users recognise *Direktavkastning*, *Soliditet* and the rest.
+
+### Metrics and scorecards
+
+- **New: FCF yield** (free cash flow / market cap), a valuation column.
+- **Yahoo now delivers ROIC and net debt/EBITDA** too (before, only Börsdata did). ROIC = EBIT after tax / (equity + debt − cash) from the latest annual report; ND/EBITDA from total debt, cash and EBITDA, empty when EBITDA is negative.
+- **Sundhet** gets three rows, weight 2 in both profiles: FCF margin, ROIC and net debt/EBITDA. Yahoo can fill 95 % of it.
+- **Sundhet, volatility**: <20 % gives the point and 20–30 % half (was <10 %, which practically never happened).
+- **Sharpe ratio over three years** instead of one; the list fetches five years of prices for it (cached like before).
+- **Utdelning, payout ratio**: sweet spot 30–60 % (was 5–30 %, which contradicted the reward for a high yield).
+- Scorecard sources shortened to the spreadsheet name and a plain description.
+
+**Effect on existing numbers:** Sundhet moves for every stock (new rows, new volatility tier, three-year Sharpe), and Utdelning moves for companies with a payout below 30 % or above 60 %.
+
 ## 2026-11-13 – Continuous integration
 
 - **CI on every push and pull request** (`.github/workflows/ci.yml`): lint, typecheck, tests and a build of both the app and the demo. Badge in the README.

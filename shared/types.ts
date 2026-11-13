@@ -33,7 +33,7 @@ export const FUNDAMENTAL_KEYS = [
   "dividendGrowth", "dividendCagr3y", "dividendCagr5y", "dividendCagr10y",
   "dividendYearsPaid", "dividendYearsNoCut", "dividendYearsRaised",
   // valuation
-  "pe", "forwardPe", "peg", "ps", "pb", "evEbit", "evEbitda", "marketCap", "eps",
+  "pe", "forwardPe", "peg", "ps", "pb", "evEbit", "evEbitda", "fcfYield", "marketCap", "eps",
   // profitability
   "roe", "roa", "roic", "profitMargin", "operatingMargin", "ebitdaMargin", "fcfMargin",
   // balance sheet & risk

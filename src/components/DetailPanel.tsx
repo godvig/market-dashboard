@@ -134,7 +134,7 @@ export function DetailPanel({ row, ctx, listName, prev, next, onBack, onNavigate
             {SCORECARDS.filter((c) => ["sundhet", "keyMetrics", "dividend", "quality"].includes(c.id)).map((c) => {
               const s = score(c, sourceOf(row, ctx), ctx.scoring);
               return (
-                <button key={c.id} className="mini-score" onClick={() => setTab("scores")} title={`${c.name}: ${s.covered}/${s.total} mått`}>
+                <button key={c.id} className="mini-score" onClick={() => setTab("scores")} title={`${c.name}: ${s.covered}/${s.total} metrics`}>
                   <span className={`badge-score sb-${scoreBand(s.pct) ?? "none"}`}>{s.pct ?? "–"}</span>
                   <small>{c.name}</small>
                 </button>
@@ -146,9 +146,9 @@ export function DetailPanel({ row, ctx, listName, prev, next, onBack, onNavigate
         <div className="tabs-bar" role="tablist">
           {(
             [
-              ["overview", "Översikt"],
-              ["scores", "Poäng"],
-              ["info", "Mina anteckningar"],
+              ["overview", "Overview"],
+              ["scores", "Scores"],
+              ["info", "My notes"],
             ] as [Tab, string][]
           ).map(([id, label]) => (
             <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? "active" : ""} onClick={() => setTab(id)}>

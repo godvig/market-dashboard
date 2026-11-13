@@ -49,6 +49,7 @@ const KPI_NAMES: Partial<Record<keyof Fundamentals, string[]>> = {
   pb: ["P/B"],
   evEbit: ["EV/EBIT"],
   evEbitda: ["EV/EBITDA"],
+  fcfYield: ["FCF-avkastning", "FCF yield", "FCF Yield"],
   eps: ["Vinst/aktie", "EPS", "Earnings/Share"],
   roe: ["ROE", "Avkastning på eget kapital", "Return on Equity"],
   roic: ["ROIC", "Avkastning på investerat kapital", "Return on Invested Capital"],

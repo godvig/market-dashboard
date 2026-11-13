@@ -37,8 +37,8 @@ describe("presets match the spreadsheet", () => {
   it("Utdelningspoäng (tillväxt) = 23", () => {
     expect(score(card("divGrowth"), src(msft), EXCEL).points).toBe(23);
   });
-  it("Utdelning = 18 (Excel shows 15 because of the AN/AN2 typo that skipped 10-year dividend growth)", () => {
-    expect(score(card("dividend"), src(msft), EXCEL).points).toBe(18);
+  it("Utdelning = 17 (Excel shows 15: its typo skipped 10-year dividend growth, +3; the 30–60 % payout sweet spot gives MSFT's lower payout 2 instead of 3, −1)", () => {
+    expect(score(card("dividend"), src(msft), EXCEL).points).toBe(17);
   });
 });
 
@@ -183,14 +183,33 @@ describe("minimum coverage", () => {
   });
 
   it("weighs coverage by points, not by number of criteria", () => {
-    // Sundhet: P/E, equity ratio and profit margin weigh 3 each of 31 in total.
+    // Sundhet: P/E, equity ratio and profit margin weigh 3 each of 37 in total
+    // (31 from the spreadsheet + 2 each for FCF margin, ROIC and net debt/EBITDA).
     const r = score(card("sundhet"), src({ pe: 12, equityRatio: 55, profitMargin: 18 }));
-    expect([r.covered, r.total]).toEqual([3, 18]);
-    expect(r.coverage).toBeCloseTo(9 / 31, 5);
+    expect([r.covered, r.total]).toEqual([3, 21]);
+    expect(r.coverage).toBeCloseTo(9 / 37, 5);
   });
 
   it("counts the whole range for scales with minus points", () => {
     const r = score(card("growthGraded"), src({ revenueGrowth: 12 }));
     expect(r.coverage).toBeCloseTo(3 / 90, 5); // 2 − (−1) of a total span of 5 × (3 + 4 + 5 + 6)
+  });
+});
+
+describe("metric fixes", () => {
+  it("volatility scores for ordinary large caps (the spreadsheet's <10 % never did)", () => {
+    const vol = (v: number) => score(card("sundhet"), src({}, { volatility: v, sharpe: null }), EXCEL).details.find((d) => d.criterion.id === "vol")!.points;
+    expect([vol(15), vol(25), vol(35)]).toEqual([2, 1, 0]);
+  });
+
+  it("Utdelning rewards a 30–60 % payout most and punishes both extremes", () => {
+    const ua = (v: number) => score(card("dividend"), src({ payoutRatio: v }), EXCEL).details.find((d) => d.criterion.id === "ua")!.points;
+    expect([3, 10, 25, 45, 65, 75, 90].map(ua)).toEqual([0, 1, 2, 3, 2, 1, 0]);
+  });
+
+  it("Sundhet scores the added cash-flow, ROIC and debt-capacity rows", () => {
+    const r = score(card("sundhet"), src({ fcfMargin: 12, roic: 11, netDebtEbitda: -0.5 }), EXCEL);
+    const pts = Object.fromEntries(r.details.filter((d) => d.points != null).map((d) => [d.criterion.id, d.points]));
+    expect(pts).toEqual({ fcf: 2, roic: 4 / 3, nde: 2 });
   });
 });

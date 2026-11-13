@@ -29,18 +29,18 @@ export function FixTicker({ symbol, name, country, onPick, onClose }: Props) {
     <div className="card fix-ticker">
       <div className="fix-head">
         <strong>
-          Hitta rätt ticker för {symbol}
+          Find the right ticker for {symbol}
           {name ? ` (${name}${country ? `, ${country}` : ""})` : ""}
         </strong>
-        <button className="icon" onClick={onClose} title="Stäng">
+        <button className="icon" onClick={onClose} title="Close">
           ×
         </button>
       </div>
-      <p className="muted small">Välj en träff så byts tickern ut i alla listor. Dina anteckningar följer med.</p>
-      <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Sök bolagsnamn eller ticker…" />
+      <p className="muted small">Pick a match and the ticker is replaced in every list. Your notes come along.</p>
+      <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search company name or ticker…" />
       <ul className="hits static">
-        {hits == null && <li className="muted">Söker…</li>}
-        {hits?.length === 0 && <li className="muted">Inga träffar – prova ett kortare namn.</li>}
+        {hits == null && <li className="muted">Searching…</li>}
+        {hits?.length === 0 && <li className="muted">No matches – try a shorter name.</li>}
         {hits?.map((h) => (
           <li key={h.symbol} onClick={() => onPick(h.symbol)}>
             <strong>{h.symbol}</strong> {h.name} <span className="muted">{h.exchange}</span>
@@ -48,9 +48,9 @@ export function FixTicker({ symbol, name, country, onPick, onClose }: Props) {
         ))}
       </ul>
       <div className="fix-manual">
-        <input value={manual} onChange={(e) => setManual(e.target.value)} placeholder="…eller skriv in tickern, t.ex. PEAB-B.ST" />
+        <input value={manual} onChange={(e) => setManual(e.target.value)} placeholder="…or type the ticker, e.g. PEAB-B.ST" />
         <button disabled={!manual.trim()} onClick={() => onPick(manual)}>
-          Byt
+          Replace
         </button>
       </div>
     </div>

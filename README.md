@@ -45,7 +45,19 @@ Run `npm run dev:mock` for offline demo data.
 
 ## Scorecards
 
-Defined in [`shared/scoring.ts`](shared/scoring.ts) as data (criteria → tiers → points), so new models are a few lines. The presets start from the original spreadsheet formulas. Tests in `shared/scoring.test.ts` check them against the spreadsheet's results for a real row, using the "exactly like Excel" settings (`EXCEL_SCORING`).
+The interface is in English, but the scorecards keep the Swedish names they had in the spreadsheets they come from:
+
+| Name | Meaning | What it scores |
+|---|---|---|
+| **Sundhet** | Health | Profitability, cash flow, balance sheet, valuation, growth and risk, each weighted 1–3. *Sundhet (AI-vikter)* is the same with an alternative set of weights. |
+| **Kvalitet & värdering** | Quality & valuation | Margin, valuation, ROE, cash flow and debt; low yield and payout score highest (the company reinvests). |
+| **Key Metrics** | – | Ten key figures, 1–5 points each. |
+| **Utdelning** | Dividend | Yield, payout, P/E, margin and 5/10-year earnings and dividend growth. |
+| **Utdelningspoäng (tillväxt)** | Dividend score (growth) | Earnings and dividend growth over 1, 3, 5 and 10 years. |
+| **Tillväxt** / **Tillväxt (graderad)** | Growth / graded growth | Five growth series over 1–10 years; the graded one subtracts points for shrinking. |
+| **Egen bedömning** | Own assessment | Your 0–3 ratings of outlook, management, insiders and more. |
+
+Defined in [`shared/scoring.ts`](shared/scoring.ts) as data (criteria → tiers → points), so new models are a few lines. The presets start from the original spreadsheet formulas. Tests in `shared/scoring.test.ts` check them against the spreadsheet's results for a real row, using the "exactly like Excel" settings (`EXCEL_SCORING`); where the app deliberately scores differently (listed below), the test says by how much and why.
 
 ### Two things the app does differently from the spreadsheet
 
@@ -80,7 +92,7 @@ Best case per source: the share of each scorecard's points that the source *can*
 
 | Scorecard | Yahoo | Börsdata | What Yahoo lacks |
 |---|---|---|---|
-| Sundhet (both weight profiles) | 94 % | 94 % | – (the rest is your own two trend assessments) |
+| Sundhet (both weight profiles) | 95 % | 95 % | – (the rest is your own two trend assessments) |
 | Kvalitet & värdering | 100 % | 100 % | – |
 | Key Metrics | 100 % | 100 % | – |
 | Utdelning | 75 % | 100 % | 5- and 10-year earnings growth |
@@ -99,6 +111,10 @@ Yahoo publishes about four years of annual statements, which gives 1- and 3-year
 - **Two formula typos fixed** in *Utdelning*: the "dividend yield > 2 %" tier and 10-year dividend growth now count.
 - **Sundhet**: each criterion scores 0–1 by its tiers and is multiplied by its weight (1–3), so both weight profiles share the same thresholds.
 - **Key Metrics**: qualitative tiers ("positive and growing FCF") are expressed as numbers, listed in the breakdown.
+- **Sundhet, volatility**: the spreadsheet gave the point for volatility under 10 %, which almost no listed company has (large caps run at 20–30 %), so it never scored. Now <20 % gives the full point and 20–30 % half.
+- **Sundhet, Sharpe ratio**: calculated over three years instead of one. One year mostly measures last year's price move.
+- **Sundhet, three added rows** (weight 2 in both profiles): FCF margin, ROIC and net debt/EBITDA. The spreadsheet had no cash-flow measure and nothing on how heavy the debt is relative to earnings.
+- **Utdelning, payout ratio**: the spreadsheet gave the most points for a payout of 5–30 % while also rewarding a yield of 4 % or more. Both at once needs a P/E below about 7.5 (yield = payout ÷ P/E), so the two criteria worked against each other. The sweet spot is now 30–60 %, falling off on both sides. *Kvalitet & värdering* keeps the low-payout preference on purpose.
 
 Metrics, Swedish names, descriptions and traffic-light thresholds live in [`shared/metrics.ts`](shared/metrics.ts); `ruleSource` marks which thresholds come from the spreadsheets and which are defaults.
 
@@ -205,6 +221,10 @@ CI runs lint, typecheck, tests and both builds on every push and pull request.
 
 ## Notes on the metrics
 
+- **ROIC** (return on invested capital) is operating profit after tax divided by equity plus debt minus cash. With Yahoo data it is calculated from the latest annual report (Yahoo's tax rate, otherwise 20 %).
+- **ND/EBITDA** (net debt / EBITDA) is how many years of operating profit it would take to pay off the debt. Negative means more cash than debt. Left empty when EBITDA is negative.
+- **FCF yield** is free cash flow divided by market cap. Left empty when the two are reported in different currencies.
+- **Sharpe** is the return above the risk-free rate divided by volatility, over the last three years (at least one). The list fetches five years of prices for it; every other metric looks at the last year at most.
 - **Vol** (volatility) is how much the price swings: the annualised standard deviation of daily log returns over one year. 20 % means the price typically moves about ±20 % a year around its trend.
 - **Div yield** (direktavkastning) is the annual dividend divided by the share price. Yahoo's forward yield is used when available, otherwise the trailing yield.
 - **Payout** (utdelningsandel) is the share of earnings paid out as dividends. Above 100 % (shown in red) means the company pays more than it earns, which is usually not sustainable.

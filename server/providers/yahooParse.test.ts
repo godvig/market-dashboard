@@ -38,3 +38,36 @@ describe("yahooParse", () => {
     expect(f.dividendCagr10y).toBeGreaterThan(0);
   });
 });
+
+describe("ROIC, net debt/EBITDA and FCF yield", () => {
+  it("derives ND/EBITDA and FCF yield from financialData", () => {
+    const f = fromSummary({
+      summaryDetail: { marketCap: 1000, currency: "SEK" },
+      financialData: { totalDebt: 300, totalCash: 100, ebitda: 100, freeCashflow: 60, financialCurrency: "SEK" },
+    });
+    expect(f.netDebtEbitda).toBe(2);
+    expect(f.fcfYield).toBeCloseTo(6, 5);
+  });
+
+  it("skips ND/EBITDA when EBITDA is negative and FCF yield when currencies differ", () => {
+    const f = fromSummary({
+      summaryDetail: { marketCap: 1000, currency: "USD" },
+      financialData: { totalDebt: 300, totalCash: 100, ebitda: -5, freeCashflow: 60, financialCurrency: "TWD" },
+    });
+    expect(f.netDebtEbitda).toBeUndefined();
+    expect(f.fcfYield).toBeUndefined();
+  });
+
+  it("computes ROIC from EBIT after tax and invested capital, latest year first", () => {
+    const f = fromAnnual([
+      { date: "2024-12-31", EBIT: 100, taxRateForCalcs: 0.25, investedCapital: 500 },
+      { date: "2023-12-31", EBIT: 50, investedCapital: 500 },
+    ]);
+    expect(f.roic).toBeCloseTo(15, 5);
+  });
+
+  it("builds invested capital from equity, debt and cash when Yahoo has no figure", () => {
+    const f = fromAnnual([{ date: "2024-12-31", EBIT: 80, stockholdersEquity: 300, totalDebt: 150, cashAndCashEquivalents: 50 }]);
+    expect(f.roic).toBeCloseTo(16, 5); // 80 × 0.8 / 400
+  });
+});

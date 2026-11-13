@@ -76,7 +76,7 @@ async function row(symbol: string, store: UserStore | null): Promise<WatchlistRo
       source: "demo",
     } as Quote;
     const [history, main] = await Promise.all([
-      mockProvider.getHistory!(symbol, "1y"),
+      mockProvider.getHistory!(symbol, "5y"),
       mockProvider.getFundamentals!(symbol),
     ]);
     const fromQuote: Fundamentals = {};

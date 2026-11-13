@@ -290,7 +290,7 @@ export function App() {
         )}
 
         <footer className="muted">
-          {updated && `Updated ${updated.toLocaleTimeString("sv-SE")} · `}
+          {updated && `Updated ${updated.toLocaleTimeString("en-GB")} · `}
           <span className="mouse-hint">
             Click a row to open the stock · drag a column header to move it · scroll on the header row to move sideways ·{" "}
           </span>

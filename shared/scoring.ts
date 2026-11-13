@@ -216,21 +216,21 @@ const atLeast = (pairs: [number, number][], floor = 0, strictLast = false): Tier
   ...pairs.map(([t, points], i) =>
     strictLast && i === pairs.length - 1 ? { gt: t, points, label: `>${t}` } : { gte: t, points, label: `≥${t}` },
   ),
-  { points: floor, label: "lägre" },
+  { points: floor, label: "lower" },
 ];
 
 /** Lower is better: `<=` threshold. Negative values (losses, negative equity) score `neg`. */
 const atMost = (pairs: [number, number][], floor = 0, neg = 0): Tier[] => [
-  { lt: 0, points: neg, label: "negativt", cliff: true },
+  { lt: 0, points: neg, label: "negative", cliff: true },
   ...pairs.map(([t, points]) => ({ lte: t, points, label: `≤${t}` })),
-  { points: floor, label: "högre" },
+  { points: floor, label: "higher" },
 ];
 
 /** Lower is better with strict `<` (Key Metrics style). */
 const below = (pairs: [number, number][], floor: number, neg: number): Tier[] => [
-  { lt: 0, points: neg, label: "negativt", cliff: true },
+  { lt: 0, points: neg, label: "negative", cliff: true },
   ...pairs.map(([t, points]) => ({ lt: t, points, label: `<${t}` })),
-  { points: floor, label: "högre" },
+  { points: floor, label: "higher" },
 ];
 
 const crit = (id: string, label: string, metric: MetricKey, tiers: Tier[], weight?: number): Criterion => ({
@@ -249,10 +249,10 @@ const crit = (id: string, label: string, metric: MetricKey, tiers: Tier[], weigh
 const quality: Scorecard = {
   id: "quality",
   name: "Kvalitet & värdering",
-  origin: "Analysark · POÄNG (3-2-1-0)",
-  description: "Vinstmarginal, värdering, ROE, kassaflöde, skuldsättning och utdelning. 3–2–1–0 poäng per mått.",
+  origin: "Analysark · 3-2-1-0 points",
+  description: "Profit margin, valuation, ROE, cash flow, debt and dividend. 3–2–1–0 points per metric. Low yield and payout score highest: the company reinvests.",
   criteria: [
-    crit("vm", "Vinstmarginal", "profitMargin", atLeast([[20, 3], [15, 2], [10, 1]])),
+    crit("vm", "Profit margin", "profitMargin", atLeast([[20, 3], [15, 2], [10, 1]])),
     crit("pe", "P/E", "pe", atMost([[10, 3], [15, 2], [20, 1]])),
     crit("pb", "P/B", "pb", atMost([[1, 3], [2, 2], [3, 1]])),
     crit("peg", "PEG", "peg", atMost([[1, 3], [1.5, 2], [2, 1]])),
@@ -260,16 +260,16 @@ const quality: Scorecard = {
     crit("fcf", "FCF", "fcfMargin", [
       { gte: 5, points: 3, label: "≥5" },
       { gte: -5, points: 2, label: "≥−5" },
-      { points: 0, label: "lägre" },
+      { points: 0, label: "lower" },
     ]),
-    crit("de", "Skuldsättning", "debtToEquity", atMost([[0.5, 3], [1, 2], [1.5, 1]])),
-    crit("da", "Direktavkastning (låg = bra)", "dividendYield", [
+    crit("de", "Debt/equity", "debtToEquity", atMost([[0.5, 3], [1, 2], [1.5, 1]])),
+    crit("da", "Dividend yield (low = good)", "dividendYield", [
       { lte: 1, points: 3, label: "≤1" },
       { lte: 2, points: 2, label: "≤2" },
       { lte: 3, points: 1, label: "≤3" },
       { points: 0, label: ">3" },
     ]),
-    crit("ua", "Utdelningsandel", "payoutRatio", [
+    crit("ua", "Payout ratio", "payoutRatio", [
       { lt: 5, points: 0, label: "<5", cliff: true },
       { gte: 5, lte: 30, points: 3, label: "5–30" },
       { gte: 30, lte: 50, points: 2, label: "30–50" },
@@ -282,19 +282,19 @@ const quality: Scorecard = {
 // 2. Tillväxt — "POÄNG (tillväxt på längre sikt = större poäng)".
 //    ≥10 % growth gives 1/2/3/4 points for 1/3/5/10 years.
 const GROWTH_SETS: [string, string, MetricKey[]][] = [
-  ["earn", "Vinsttillväxt", ["earningsGrowth", "earningsCagr3y", "earningsCagr5y", "earningsCagr10y"]],
-  ["div", "Utdelningstillväxt", ["dividendGrowth", "dividendCagr3y", "dividendCagr5y", "dividendCagr10y"]],
-  ["eps", "EPS-tillväxt", ["epsGrowth", "epsCagr3y", "epsCagr5y", "epsCagr10y"]],
-  ["rev", "Omsättningstillväxt", ["revenueGrowth", "revenueCagr3y", "revenueCagr5y", "revenueCagr10y"]],
-  ["ebitda", "EBITDA-tillväxt", ["ebitdaGrowth", "ebitdaCagr3y", "ebitdaCagr5y", "ebitdaCagr10y"]],
+  ["earn", "Earnings growth", ["earningsGrowth", "earningsCagr3y", "earningsCagr5y", "earningsCagr10y"]],
+  ["div", "Dividend growth", ["dividendGrowth", "dividendCagr3y", "dividendCagr5y", "dividendCagr10y"]],
+  ["eps", "EPS growth", ["epsGrowth", "epsCagr3y", "epsCagr5y", "epsCagr10y"]],
+  ["rev", "Revenue growth", ["revenueGrowth", "revenueCagr3y", "revenueCagr5y", "revenueCagr10y"]],
+  ["ebitda", "EBITDA growth", ["ebitdaGrowth", "ebitdaCagr3y", "ebitdaCagr5y", "ebitdaCagr10y"]],
 ];
-const HORIZONS = ["1 år", "3 år", "5 år", "10 år"];
+const HORIZONS = ["1y", "3y", "5y", "10y"];
 
 const growth: Scorecard = {
   id: "growth",
   name: "Tillväxt",
-  origin: "Analysark · POÄNG (tillväxt på längre sikt = större poäng)",
-  description: "Vinst, utdelning, EPS, omsättning och EBITDA. ≥10 %/år ger 1, 2, 3 resp. 4 poäng för 1, 3, 5 och 10 år.",
+  origin: "Analysark · longer horizons score more",
+  description: "Earnings, dividend, EPS, revenue and EBITDA. ≥10 %/year gives 1, 2, 3 and 4 points over 1, 3, 5 and 10 years.",
   criteria: GROWTH_SETS.flatMap(([id, label, keys]) =>
     keys.map((k, i) => crit(`${id}${i}`, `${label} ${HORIZONS[i]}`, k, [{ gte: 10, points: i + 1, label: "≥10" }, { points: 0, label: "<10" }])),
   ),
@@ -310,8 +310,8 @@ const GRADED = [
 const growthGraded: Scorecard = {
   id: "growthGraded",
   name: "Tillväxt (graderad)",
-  origin: "Analysark · POÄNG2 (liknande viktning)",
-  description: "Som Tillväxt men graderad: ≥10 % och ≥5 % ger poäng, krympande (<0 %) ger minuspoäng. Längre sikt väger tyngre.",
+  origin: "Analysark · graded",
+  description: "Like Tillväxt but graded: ≥10 % and ≥5 % score, shrinking (<0 %) loses points. Longer horizons weigh more.",
   criteria: GROWTH_SETS.flatMap(([id, label, keys]) =>
     keys.map((k, i) => {
       const [hi, mid, neg] = GRADED[i];
@@ -335,33 +335,39 @@ const step321 = (): Tier[] => [
 const divGrowth: Scorecard = {
   id: "divGrowth",
   name: "Utdelningspoäng (tillväxt)",
-  origin: "Analysark · UTDELNINGSPOÄNG (bara vinst & utd.tillväxt)",
-  description: "Vinst- och utdelningstillväxt över 1, 3, 5 och 10 år. 3–2–1–0 poäng (≥10 %, ≥5 %, >1 %).",
+  origin: "Analysark · earnings and dividend growth only",
+  description: "Earnings and dividend growth over 1, 3, 5 and 10 years. 3–2–1–0 points (≥10 %, ≥5 %, >1 %).",
   criteria: GROWTH_SETS.slice(0, 2).flatMap(([id, label, keys]) => keys.map((k, i) => crit(`${id}${i}`, `${label} ${HORIZONS[i]}`, k, step321()))),
 };
 
 // 5. Utdelning — "Slutgiltig utdelningspoäng" = Viktigaste + Tillväxt.
 //    Includes the fixes: DA ">2 %" tier and 10-year dividend growth now count.
+//    Deviation: the spreadsheet gave the most points for a payout of 5–30 %,
+//    while also rewarding a yield ≥4 %. Both at once needs P/E below ~7.5
+//    (yield = payout / P/E), so they worked against each other. The sweet
+//    spot is now 30–60 %: room to keep paying without starving the business.
 const dividend: Scorecard = {
   id: "dividend",
   name: "Utdelning",
-  origin: "Analysark · Slutgiltig utdelningspoäng (Viktigaste + Tillväxt)",
-  description: "Viktigaste: direktavkastning, utdelningsandel, P/E, vinstmarginal. Tillväxt: vinst- och utdelningstillväxt 5 och 10 år.",
+  origin: "Analysark · final dividend score",
+  description: "Core: dividend yield, payout ratio, P/E, profit margin. Growth: earnings and dividend growth over 5 and 10 years. Payout sweet spot 30–60 %.",
   criteria: [
-    crit("da", "Direktavkastning", "dividendYield", atLeast([[4, 3], [3, 2], [2, 1]], 0, true)),
-    crit("ua", "Utdelningsandel", "payoutRatio", [
+    crit("da", "Dividend yield", "dividendYield", atLeast([[4, 3], [3, 2], [2, 1]], 0, true)),
+    crit("ua", "Payout ratio", "payoutRatio", [
       { lt: 5, points: 0, label: "<5", cliff: true },
-      { gte: 5, lt: 30, points: 3, label: "5–30" },
-      { gte: 5, lt: 50, points: 2, label: "30–50" },
-      { gte: 5, lt: 70, points: 1, label: "50–70" },
-      { points: 0, label: "70+" },
+      { lt: 20, points: 1, label: "5–20" },
+      { lt: 30, points: 2, label: "20–30" },
+      { lte: 60, points: 3, label: "30–60" },
+      { lte: 70, points: 2, label: "60–70" },
+      { lte: 80, points: 1, label: "70–80" },
+      { points: 0, label: ">80" },
     ]),
     crit("pe", "P/E", "pe", atMost([[15, 3], [20, 2], [25, 1]])),
-    crit("vm", "Vinstmarginal", "profitMargin", atLeast([[20, 3], [12, 2], [5, 1]])),
-    crit("earn5", "Vinsttillväxt 5 år", "earningsCagr5y", step321()),
-    crit("earn10", "Vinsttillväxt 10 år", "earningsCagr10y", step321()),
-    crit("div5", "Utdelningstillväxt 5 år", "dividendCagr5y", step321()),
-    crit("div10", "Utdelningstillväxt 10 år", "dividendCagr10y", step321()),
+    crit("vm", "Profit margin", "profitMargin", atLeast([[20, 3], [12, 2], [5, 1]])),
+    crit("earn5", "Earnings growth 5y", "earningsCagr5y", step321()),
+    crit("earn10", "Earnings growth 10y", "earningsCagr10y", step321()),
+    crit("div5", "Dividend growth 5y", "dividendCagr5y", step321()),
+    crit("div10", "Dividend growth 10y", "dividendCagr10y", step321()),
   ],
 };
 
@@ -370,33 +376,40 @@ const dividend: Scorecard = {
 type SundhetRow = [id: string, label: string, metric: MetricKey, tiers: Tier[], mine: number, ai: number];
 const frac = (pairs: [Test & { label: string; cliff?: boolean }, number][]): Tier[] => [
   ...pairs.map(([t, p]) => ({ ...t, points: p })),
-  { points: 0, label: "övrigt" },
+  { points: 0, label: "other" },
 ];
 const SUNDHET: SundhetRow[] = [
-  ["roe", "Avkastning på eget kapital", "roe", frac([[{ gt: 20, label: ">20" }, 1], [{ gte: 15, label: "15–20" }, 2 / 3], [{ gte: 10, label: "10–15" }, 1 / 3]]), 1, 3],
-  ["quick", "Kassalikviditet", "quickRatio", frac([[{ gt: 1.5, label: ">1,5" }, 1], [{ gte: 1, label: "1,0–1,5" }, 1 / 2]]), 1, 2],
-  ["rev", "Omsättningstillväxt", "revenueGrowth", frac([[{ gt: 15, label: ">15" }, 1], [{ gte: 10, label: "10–15" }, 2 / 3], [{ gte: 5, label: "5–10" }, 1 / 3]]), 1, 3],
-  ["pe", "P/E-tal", "pe", frac([[{ lt: 0, label: "negativt", cliff: true }, 0], [{ lt: 15, label: "<15" }, 1], [{ lte: 20, label: "15–20" }, 1 / 2]]), 3, 2],
-  ["roa", "Räntabilitet", "roa", frac([[{ gt: 15, label: ">15" }, 1], [{ gte: 10, label: "10–15" }, 2 / 3], [{ gte: 5, label: "5–10" }, 1 / 3]]), 1, 3],
-  ["opm", "Rörelsemarginal", "operatingMargin", frac([[{ gt: 20, label: ">20" }, 1], [{ gte: 15, label: "15–20" }, 2 / 3], [{ gte: 10, label: "10–15" }, 1 / 3]]), 1, 3],
-  ["opi", "Rörelseresultat", "operatingIncomeGrowth", frac([[{ gt: 20, label: ">20 % YoY" }, 1], [{ gte: 10, label: "10–20 % YoY" }, 1 / 2]]), 1, 2],
-  ["de", "Skuldsättningsgrad", "debtToEquity", frac([[{ lt: 0, label: "negativt EK", cliff: true }, 0], [{ lt: 0.5, label: "<0,5" }, 1], [{ lte: 1, label: "0,5–1,0" }, 1 / 2]]), 1, 2],
-  ["eq", "Soliditet", "equityRatio", frac([[{ gt: 50, label: ">50" }, 1], [{ gte: 40, label: "40–50" }, 1 / 2]]), 3, 2],
-  ["vm", "Vinstmarginal", "profitMargin", frac([[{ gt: 15, label: ">15" }, 1], [{ gte: 10, label: "10–15" }, 2 / 3], [{ gte: 5, label: "5–10" }, 1 / 3]]), 3, 3],
-  ["trendS", "Trend – sektor", "manual.trendSector", frac([[{ gte: 3, label: "Stark positiv" }, 1]]), 1, 1],
-  ["trendB", "Trend – bransch", "manual.trendIndustry", frac([[{ gte: 3, label: "Stark positiv" }, 1]]), 1, 1],
-  ["ps", "P/S", "ps", frac([[{ lt: 0, label: "negativt", cliff: true }, 0], [{ lt: 1, label: "<1" }, 1]]), 2, 1],
-  ["ebitda", "EBITDA-marginal", "ebitdaMargin", frac([[{ gt: 20, label: ">20" }, 1], [{ gte: 15, label: "15–20" }, 1 / 2]]), 3, 2],
-  ["cagr", "CAGR (omsättning 3 år)", "revenueCagr3y", frac([[{ gte: 15, label: "15 %+/år" }, 1], [{ gte: 10, label: "10–15 %/år" }, 1 / 2]]), 3, 2],
-  ["vol", "Volatilitet", "volatility", frac([[{ lt: 10, label: "<10" }, 1]]), 2, 1],
-  ["beta", "Beta", "beta", frac([[{ lt: 0.8, label: "<0,8" }, 1], [{ lte: 1, label: "0,8–1,0" }, 1 / 2]]), 2, 1],
-  ["sharpe", "Sharpekvot", "sharpe", frac([[{ gt: 1.5, label: ">1,5" }, 1], [{ gte: 1, label: "1–1,5" }, 1 / 2]]), 1, 2],
+  ["roe", "Return on equity", "roe", frac([[{ gt: 20, label: ">20" }, 1], [{ gte: 15, label: "15–20" }, 2 / 3], [{ gte: 10, label: "10–15" }, 1 / 3]]), 1, 3],
+  ["quick", "Quick ratio", "quickRatio", frac([[{ gt: 1.5, label: ">1.5" }, 1], [{ gte: 1, label: "1.0–1.5" }, 1 / 2]]), 1, 2],
+  ["rev", "Revenue growth", "revenueGrowth", frac([[{ gt: 15, label: ">15" }, 1], [{ gte: 10, label: "10–15" }, 2 / 3], [{ gte: 5, label: "5–10" }, 1 / 3]]), 1, 3],
+  ["pe", "P/E", "pe", frac([[{ lt: 0, label: "negative", cliff: true }, 0], [{ lt: 15, label: "<15" }, 1], [{ lte: 20, label: "15–20" }, 1 / 2]]), 3, 2],
+  ["roa", "Return on assets", "roa", frac([[{ gt: 15, label: ">15" }, 1], [{ gte: 10, label: "10–15" }, 2 / 3], [{ gte: 5, label: "5–10" }, 1 / 3]]), 1, 3],
+  ["opm", "Operating margin", "operatingMargin", frac([[{ gt: 20, label: ">20" }, 1], [{ gte: 15, label: "15–20" }, 2 / 3], [{ gte: 10, label: "10–15" }, 1 / 3]]), 1, 3],
+  ["opi", "Operating profit growth", "operatingIncomeGrowth", frac([[{ gt: 20, label: ">20 % YoY" }, 1], [{ gte: 10, label: "10–20 % YoY" }, 1 / 2]]), 1, 2],
+  ["de", "Debt/equity", "debtToEquity", frac([[{ lt: 0, label: "negative equity", cliff: true }, 0], [{ lt: 0.5, label: "<0.5" }, 1], [{ lte: 1, label: "0.5–1.0" }, 1 / 2]]), 1, 2],
+  ["eq", "Equity ratio", "equityRatio", frac([[{ gt: 50, label: ">50" }, 1], [{ gte: 40, label: "40–50" }, 1 / 2]]), 3, 2],
+  ["vm", "Profit margin", "profitMargin", frac([[{ gt: 15, label: ">15" }, 1], [{ gte: 10, label: "10–15" }, 2 / 3], [{ gte: 5, label: "5–10" }, 1 / 3]]), 3, 3],
+  ["trendS", "Trend – sector", "manual.trendSector", frac([[{ gte: 3, label: "Strongly positive" }, 1]]), 1, 1],
+  ["trendB", "Trend – industry", "manual.trendIndustry", frac([[{ gte: 3, label: "Strongly positive" }, 1]]), 1, 1],
+  ["ps", "P/S", "ps", frac([[{ lt: 0, label: "negative", cliff: true }, 0], [{ lt: 1, label: "<1" }, 1]]), 2, 1],
+  ["ebitda", "EBITDA margin", "ebitdaMargin", frac([[{ gt: 20, label: ">20" }, 1], [{ gte: 15, label: "15–20" }, 1 / 2]]), 3, 2],
+  ["cagr", "Revenue CAGR 3y", "revenueCagr3y", frac([[{ gte: 15, label: "15 %+/yr" }, 1], [{ gte: 10, label: "10–15 %/yr" }, 1 / 2]]), 3, 2],
+  // Deviation: the spreadsheet asked for volatility <10 %, which almost no
+  // listed company has (large caps run at 20–30 %), so it never scored.
+  ["vol", "Volatility", "volatility", frac([[{ lt: 20, label: "<20" }, 1], [{ lt: 30, label: "20–30" }, 1 / 2]]), 2, 1],
+  ["beta", "Beta", "beta", frac([[{ lt: 0.8, label: "<0.8" }, 1], [{ lte: 1, label: "0.8–1.0" }, 1 / 2]]), 2, 1],
+  ["sharpe", "Sharpe ratio (3y)", "sharpe", frac([[{ gt: 1.5, label: ">1.5" }, 1], [{ gte: 1, label: "1–1.5" }, 1 / 2]]), 1, 2],
+  // Added (not in the spreadsheet): cash flow, capital efficiency and debt
+  // capacity, which the original rows did not cover. Weight 2 in both profiles.
+  ["fcf", "FCF margin", "fcfMargin", frac([[{ gt: 10, label: ">10" }, 1], [{ gte: 5, label: "5–10" }, 2 / 3], [{ gte: 0, label: "0–5" }, 1 / 3]]), 2, 2],
+  ["roic", "ROIC", "roic", frac([[{ gt: 15, label: ">15" }, 1], [{ gte: 10, label: "10–15" }, 2 / 3], [{ gte: 5, label: "5–10" }, 1 / 3]]), 2, 2],
+  ["nde", "Net debt/EBITDA", "netDebtEbitda", frac([[{ lt: 1, label: "<1" }, 1], [{ lt: 2, label: "1–2" }, 2 / 3], [{ lt: 3, label: "2–3" }, 1 / 3]]), 2, 2],
 ];
 const sundhet = (id: string, name: string, which: 4 | 5, origin: string): Scorecard => ({
   id,
   name,
   origin,
-  description: "Lönsamhet, balansräkning, värdering, tillväxt och risk enligt SUNDHET-fliken. Varje mått viktas 1–3.",
+  description: "Profitability, cash flow, balance sheet, valuation, growth and risk, from the SUNDHET sheet plus FCF, ROIC and net debt/EBITDA. Each metric weighs 1–3.",
   criteria: SUNDHET.map((r) => crit(r[0], r[1], r[2], r[3], r[which])),
 });
 
@@ -405,39 +418,39 @@ const sundhet = (id: string, name: string, which: 4 | 5, origin: string): Scorec
 const keyMetrics: Scorecard = {
   id: "keyMetrics",
   name: "Key Metrics",
-  origin: "Allmän snurra · Key Metrics + Poängsystem",
-  description: "Tio nyckeltal, 1–5 poäng vardera. Kvalitativa nivåer (FCF, tillväxt) är omsatta i siffror.",
+  origin: "Allmän snurra · Key Metrics",
+  description: "Ten key figures, 1–5 points each. Qualitative tiers (FCF, growth) are expressed as numbers.",
   criteria: [
-    crit("vm", "Vinstmarginal", "profitMargin", atLeast([[20, 5], [15, 4], [10, 3], [5, 2]], 1, true)),
-    crit("fcf", "Fritt kassaflöde", "fcfMargin", [
-      { gte: 10, points: 5, label: "starkt positivt (≥10 % av oms.)" },
-      { gte: 5, points: 4, label: "positivt (5–10 %)" },
-      { gte: 0, points: 3, label: "svagt positivt (0–5 %)" },
-      { gte: -5, points: 2, label: "svagt negativt (−5–0 %)" },
-      { points: 1, label: "negativt (<−5 %)" },
+    crit("vm", "Profit margin", "profitMargin", atLeast([[20, 5], [15, 4], [10, 3], [5, 2]], 1, true)),
+    crit("fcf", "Free cash flow", "fcfMargin", [
+      { gte: 10, points: 5, label: "strongly positive (≥10 % of revenue)" },
+      { gte: 5, points: 4, label: "positive (5–10 %)" },
+      { gte: 0, points: 3, label: "slightly positive (0–5 %)" },
+      { gte: -5, points: 2, label: "slightly negative (−5–0 %)" },
+      { points: 1, label: "negative (<−5 %)" },
     ]),
-    crit("rev", "Omsättningstillväxt", "revenueGrowth", [
-      { gte: 15, points: 5, label: "stark (≥15 %)" },
-      { gte: 5, points: 4, label: "måttlig (5–15 %)" },
-      { gte: 0, points: 3, label: "stabil (0–5 %)" },
-      { gte: -5, points: 2, label: "minskande (−5–0 %)" },
-      { points: 1, label: "kraftigt minskande (<−5 %)" },
+    crit("rev", "Revenue growth", "revenueGrowth", [
+      { gte: 15, points: 5, label: "strong (≥15 %)" },
+      { gte: 5, points: 4, label: "moderate (5–15 %)" },
+      { gte: 0, points: 3, label: "stable (0–5 %)" },
+      { gte: -5, points: 2, label: "shrinking (−5–0 %)" },
+      { points: 1, label: "shrinking fast (<−5 %)" },
     ]),
-    crit("da", "Direktavkastning", "dividendYield", [
-      { lte: 0, points: 1, label: "ingen", cliff: true },
+    crit("da", "Dividend yield", "dividendYield", [
+      { lte: 0, points: 1, label: "none", cliff: true },
       { gt: 5, points: 5, label: ">5" },
       { gte: 3, points: 4, label: "3–5" },
       { gte: 1, points: 3, label: "1–3" },
       { points: 2, label: "<1" },
     ]),
     crit("roe", "ROE", "roe", atLeast([[20, 5], [15, 4], [10, 3], [5, 2]], 1, true)),
-    crit("de", "Skuldsättningsgrad", "debtToEquity", below([[0.5, 5], [1, 4], [1.5, 3], [2, 2]], 1, 1)),
+    crit("de", "Debt/equity", "debtToEquity", below([[0.5, 5], [1, 4], [1.5, 3], [2, 2]], 1, 1)),
     crit("pb", "P/B", "pb", below([[1, 5], [2, 4], [3, 3], [4, 2]], 1, 1)),
-    crit("eps", "EPS-tillväxt", "epsGrowth", [
-      { gte: 15, points: 5, label: "kraftig (≥15 %)" },
-      { gte: 5, points: 4, label: "måttlig (5–15 %)" },
-      { gte: 0, points: 3, label: "stabil (0–5 %)" },
-      { points: 2, label: "minskande" },
+    crit("eps", "EPS growth", "epsGrowth", [
+      { gte: 15, points: 5, label: "strong (≥15 %)" },
+      { gte: 5, points: 4, label: "moderate (5–15 %)" },
+      { gte: 0, points: 3, label: "stable (0–5 %)" },
+      { points: 2, label: "shrinking" },
     ]),
     crit("pe", "P/E", "pe", below([[10, 5], [15, 4], [20, 3], [25, 2]], 1, 1)),
     crit("peg", "PEG", "peg", below([[1, 5], [1.5, 4], [2, 3], [2.5, 2]], 1, 1)),
@@ -448,16 +461,16 @@ const keyMetrics: Scorecard = {
 const own: Scorecard = {
   id: "own",
   name: "Egen bedömning",
-  origin: "Analysark · Fler, ej inräknade",
-  description: "Dina egna bedömningar: framtidsutsikter, nyhetsläge, ledning, årsredovisning, insiders, ägarstruktur, helhet.",
+  origin: "Analysark · extra checklist",
+  description: "Your own assessments: outlook, news, management, annual report, insiders, ownership, overall.",
   criteria: (["outlook", "newsflow", "management", "annualReport", "insiders", "ownership", "overall"] as const).map((k) =>
-    crit(k, METRIC_BY_KEY.get(`manual.${k}`)?.sv ?? k, `manual.${k}`, [3, 2, 1, 0].map((p) => ({ gte: p, points: p, label: String(p) }))),
+    crit(k, METRIC_BY_KEY.get(`manual.${k}`)?.label ?? k, `manual.${k}`, [3, 2, 1, 0].map((p) => ({ gte: p, points: p, label: String(p) }))),
   ),
 };
 
 export const SCORECARDS: Scorecard[] = [
-  sundhet("sundhet", "Sundhet", 4, "Analysark · SUNDHET (dina vikter)"),
-  sundhet("sundhetAi", "Sundhet (AI-vikter)", 5, "Analysark · SUNDHET (Ain tycker till)"),
+  sundhet("sundhet", "Sundhet", 4, "Analysark · your weights"),
+  sundhet("sundhetAi", "Sundhet (AI-vikter)", 5, "Analysark · alternative weights"),
   quality,
   keyMetrics,
   dividend,

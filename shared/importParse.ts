@@ -157,9 +157,9 @@ export function unitOf(target: ImportTarget | null): string {
     case "x":
       return "×";
     case "years":
-      return "år";
+      return "years";
     case "amount":
-      return target === "marketCap" ? "kr" : "kr/aktie";
+      return target === "marketCap" ? "currency" : "per share";
     default:
       return "";
   }

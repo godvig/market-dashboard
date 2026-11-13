@@ -53,7 +53,7 @@ export function formatMetric(key: MetricKey, v: number | null): string {
     case "x":
       return fmtNum(v, key === "beta" || key === "peg" || key === "quickRatio" || key === "debtToEquity" || key === "sharpe" ? 2 : 1);
     case "years":
-      return `${Math.round(v)} år`;
+      return `${Math.round(v)} yrs`;
     case "level":
       return MANUAL_LEVELS[key.slice(7) as ManualKey]?.[v] ?? String(v);
     case "amount":
@@ -124,7 +124,7 @@ export function ScoreBadge({ card, r, ctx }: { card: Scorecard; r: WatchlistRow;
     return (
       <span
         className="score thin"
-        title={`${card.name}: för lite data för en poäng. ${s.covered}/${s.total} mått hade data, vilket täcker ${pctOf(s.coverage)} av poängen (minst ${pctOf(ctx.scoring.minCoverage ?? 0.6)} krävs). På de måtten blev det ${s.rawPct}.`}
+        title={`${card.name}: too little data for a score. ${s.covered}/${s.total} metrics had data, covering ${pctOf(s.coverage)} of the points (${pctOf(ctx.scoring.minCoverage ?? 0.6)} needed). On those metrics it would be ${s.rawPct}.`}
       >
         <span className="badge-score sb-none">–</span>
         <small>
@@ -136,7 +136,7 @@ export function ScoreBadge({ card, r, ctx }: { card: Scorecard; r: WatchlistRow;
   return (
     <span
       className="score"
-      title={`${card.name}: ${s.points} av ${s.max} möjliga poäng (${s.covered}/${s.total} mått hade data = ${pctOf(s.coverage)} av poängen, max ${s.fullMax} med all data)`}
+      title={`${card.name}: ${s.points} of ${s.max} possible points (${s.covered}/${s.total} metrics had data = ${pctOf(s.coverage)} of the points; ${s.fullMax} with all data)`}
     >
       <span className={`badge-score sb-${scoreBand(s.pct)}`}>{s.pct}</span>
       <small>
@@ -149,7 +149,7 @@ export function ScoreBadge({ card, r, ctx }: { card: Scorecard; r: WatchlistRow;
 const scoreCol = (card: Scorecard, defaultOn: boolean): ColumnDef => ({
   id: `score.${card.id}`,
   label: card.name,
-  title: `${card.description} (${card.origin}). 0–100 = poäng i förhållande till möjliga poäng på de mått som hade data; siffran bredvid är täckningen. Vid för låg täckning visas ingen poäng.`,
+  title: `${card.description} (${card.origin}). 0–100 = points relative to the points possible on the metrics that had data; the small number is coverage. No score is shown when coverage is too low.`,
   tier: "extra",
   section: "Scores",
   defaultOn,
@@ -160,7 +160,7 @@ const scoreCol = (card: Scorecard, defaultOn: boolean): ColumnDef => ({
 const infoCol = (id: "sector" | "niche" | "country", label: string, sv: string): ColumnDef => ({
   id: `info.${id}`,
   label,
-  title: sv,
+  title: `Swedish: ${sv}`,
   tier: "extra",
   section: "Company info",
   defaultOn: false,
@@ -286,6 +286,7 @@ export const COLUMNS: ColumnDef[] = [
   metricCol("ps", "Valuation"),
   metricCol("evEbit", "Valuation"),
   metricCol("evEbitda", "Valuation"),
+  metricCol("fcfYield", "Valuation"),
   metricCol("eps", "Valuation"),
   {
     id: "mktcap",
@@ -293,7 +294,7 @@ export const COLUMNS: ColumnDef[] = [
     tier: "extra",
     section: "Valuation",
     defaultOn: true,
-    title: "Börsvärde, converted to the base currency so it can be compared and sorted; original below",
+    title: "Market cap (börsvärde), converted to the base currency so it can be compared and sorted; original below",
     value: (r) => toBase(r.fundamentals.marketCap, r.fx),
     render: (r, { baseCurrency }) => {
       const cap = r.fundamentals.marketCap;
