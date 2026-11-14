@@ -2,13 +2,15 @@
 
 [![CI](https://github.com/godvig/market-screener/actions/workflows/ci.yml/badge.svg)](https://github.com/godvig/market-screener/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A stock watchlist and analysis dashboard that pulls data from free market-data APIs. Add any tickers (Stockholm, US, Europe…), sort and filter the list by returns, risk and valuation metrics, and open a candlestick chart with moving averages for each one.
+A stock screener built around **your own scorecards**. Rank a watchlist by what you care about (return on capital, debt, dividends, growth), see why each stock scores what it does compared with the rest of the list, and follow how that score moves over time. It started as a set of Excel scoring sheets; prices and key figures come from free APIs or your own Börsdata/CSV export, and everything stays on your machine.
 
-**[Try the demo →](https://screener.godvig.com/)** (made-up prices, runs entirely in your browser)
+![Ranking a list, opening a stock and tuning a scorecard](docs/demo.gif)
 
-![Watchlist with scores and traffic lights](docs/screenshot.png)
+**[Try the demo](https://screener.godvig.com/)**: made-up prices, runs entirely in your browser, no account.
 
-![Score breakdown per criterion](docs/scores.png)
+| Ranked by a scorecard | Why this score | Build your own |
+| --- | --- | --- |
+| ![Watchlist ranked by Tillväxt with score change](docs/screenshot.png) | ![Why a stock scores what it does](docs/why.png) | ![Scorecard editor with live ranking](docs/scorecard-editor.png) |
 
 ## Features
 
@@ -17,7 +19,8 @@ A stock watchlist and analysis dashboard that pulls data from free market-data A
 - **Build your own scorecards.** Duplicate a preset or start fresh, then change criteria, thresholds, points and weights in the browser. A live ranking of the open list shows which stocks move up or down as you edit. Export a scorecard as a JSON file to share it, import someone else's. See [Your own scorecards](#your-own-scorecards)
 - **Why this score.** The stock page explains the score against the rest of the list: which criteria lift it above a typical stock in the list and which pull it down, in score points, with the list's median next to each value. "#2 of 6, +9 vs the list average" at a glance
 - **Score history.** The figures behind the scores are saved every time a list loads (daily for five weeks, then weekly), so any scorecard, even one you built today, can be scored back in time. The stock page shows the trend for 1M / 3M / 1Y and which figures moved it ("ROIC 22 % → 19 %, −3.9")
-- **Rank a list by a scorecard.** Each list can have its own "lens", e.g. *Utdelning* for a dividend list and *Tillväxt* for a growth list. The table sorts by it and keeps its column in view
+- **Rank a list by a scorecard.** Each list can have its own "lens", e.g. *Utdelning* for a dividend list and *Tillväxt* for a growth list. The table sorts by it and leads with its score and a **score change** column (Δ 1M / 3M / 6M / 1Y, set under *Columns*); hover a change to see which figures moved it
+- **Light and dark theme.** Follows your system, or pick one with the button in the top right
 - **Traffic lights.** Green / yellow / red dots on each key figure, using the spreadsheet's icon-set thresholds (toggle in the column picker)
 - **Bring your own data.** Import key figures from a CSV or Excel file, such as an export from Börsdata's screener, to fill the scorecards with 5- and 10-year growth and the rest without an API key. Columns are recognised by name (Swedish and English), you check the converted values in a preview, rows are matched to your stocks by ticker or name, and the mapping is remembered so the next export imports in one click. Imported figures stay on your machine. See [Importing key figures](#importing-key-figures-csv--excel)
 - **Own notes and assessments per stock.** Sector, niche, country, free-text notes and 0–3 assessments (outlook, management, insiders, sector trend…) that feed the manual criteria. Stored only in `data/store.json` on your machine

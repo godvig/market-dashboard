@@ -434,7 +434,7 @@ export function ScorecardEditor({ cards, selectedId, rows, ctx, listName, lensId
                               className="sc-pts"
                               type="number"
                               step={0.5}
-                              value={t.points}
+                              value={Math.round(t.points * 100) / 100}
                               disabled={!editable}
                               aria-label="Points"
                               onChange={(e) =>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { WatchlistRow } from "../../shared/types";
-import { DEFAULT_COLUMNS, columnCoverage, columnsFor, customOf, insertColumn, normaliseColumnIds, type ColumnDef, type Ctx } from "../columns";
+import { DEFAULT_COLUMNS, TREND_CHOICES, columnCoverage, columnsFor, customOf, insertColumn, normaliseColumnIds, type ColumnDef, type Ctx } from "../columns";
 
 interface Props {
   value?: string[];
@@ -11,12 +11,13 @@ interface Props {
   onTrafficLights: (on: boolean) => void;
   onSmoothScoring: (on: boolean) => void;
   onMinCoverage: (pct: number) => void;
+  onTrendDays: (days: number) => void;
 }
 
 const MIN_COVERAGE_CHOICES = [0, 40, 50, 60, 75, 90];
 
 /** Dropdown with checkboxes: standard columns, a divider, then extra key figures. */
-export function ColumnPicker({ value, onChange, rows, ctx, onTrafficLights, onSmoothScoring, onMinCoverage }: Props) {
+export function ColumnPicker({ value, onChange, rows, ctx, onTrafficLights, onSmoothScoring, onMinCoverage, onTrendDays }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const order = normaliseColumnIds(value) ?? DEFAULT_COLUMNS;
@@ -121,6 +122,16 @@ export function ColumnPicker({ value, onChange, rows, ctx, onTrafficLights, onSm
                 {MIN_COVERAGE_CHOICES.map((p) => (
                   <option key={p} value={p}>
                     {p === 0 ? "Off" : `${p} %`}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label title="Period of the Score change column. It follows the list's scorecard (Rank by), or Sundhet.">
+              Score change over
+              <select value={ctx.trendDays} onChange={(e) => onTrendDays(Number(e.target.value))}>
+                {TREND_CHOICES.map(([days, label]) => (
+                  <option key={days} value={days}>
+                    {label}
                   </option>
                 ))}
               </select>

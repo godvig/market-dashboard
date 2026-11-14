@@ -4,6 +4,7 @@ import type { KnownStock } from "../shared/importMatch";
 import type { Cell } from "../shared/importParse";
 import { DEFAULT_IMPORT_MAX_AGE_DAYS } from "../shared/importMerge";
 import { allScorecards } from "../shared/scorecardIO";
+import type { Snapshot } from "../shared/scoreHistory";
 import type { WatchlistRow } from "../shared/types";
 import { api, IS_DEMO } from "./api";
 import { AddSymbol } from "./components/AddSymbol";
@@ -14,6 +15,7 @@ import { ImportDialog } from "./components/ImportDialog";
 import { LensPicker } from "./components/LensPicker";
 import { ListHeader } from "./components/ListHeader";
 import { ScorecardEditor } from "./components/ScorecardEditor";
+import { ThemeToggle } from "./components/ThemeToggle";
 import { Sidebar } from "./components/Sidebar";
 import { WatchlistTable } from "./components/WatchlistTable";
 import { useRoute } from "./useRoute";
@@ -99,6 +101,22 @@ export function App() {
   useEffect(() => {
     for (const r of rows) if (!r.error && r.quote.name) seenNames.current.set(r.quote.symbol, r.quote.name);
   }, [rows]);
+
+  // Key-figure history for the score-change column, fetched once the list has loaded
+  // (the server has just saved today's snapshot by then).
+  const [snapshots, setSnapshots] = useState<Record<string, Snapshot[]>>();
+  useEffect(() => {
+    const symbols = rows.filter((r) => !r.error).map((r) => r.quote.symbol);
+    if (!symbols.length) return;
+    let alive = true;
+    api
+      .snapshotsMany(symbols)
+      .then((s) => alive && setSnapshots(s))
+      .catch(() => alive && setSnapshots({}));
+    return () => {
+      alive = false;
+    };
+  }, [rows]);
   const known = useMemo((): KnownStock[] => {
     if (!importing || !store) return [];
     const symbols = new Set(store.lists.flatMap((l) => l.symbols));
@@ -127,8 +145,11 @@ export function App() {
       trafficLights: store?.settings?.trafficLights !== false,
       scoring: { smooth: store?.settings?.smoothScoring !== false, minCoverage: (store?.settings?.minCoverage ?? 60) / 100 },
       scorecards: allScorecards(store?.scorecards),
+      lensId: list?.scorecardId,
+      snapshots,
+      trendDays: store?.settings?.trendDays ?? 91,
     }),
-    [baseCurrency, store?.stocks, store?.scorecards, store?.settings?.trafficLights, store?.settings?.smoothScoring, store?.settings?.minCoverage],
+    [baseCurrency, store?.stocks, store?.scorecards, list?.scorecardId, snapshots, store?.settings?.trendDays, store?.settings?.trafficLights, store?.settings?.smoothScoring, store?.settings?.minCoverage],
   );
   const fixMeta = fixing ? store?.stocks?.[fixing] : undefined;
 
@@ -168,6 +189,7 @@ export function App() {
           <button onClick={refresh} disabled={loading}>
             {loading ? "Loading…" : "Refresh"}
           </button>
+          <ThemeToggle />
         </header>
 
         {IS_DEMO && (
@@ -313,6 +335,7 @@ export function App() {
                       onTrafficLights={s.setTrafficLights}
                       onSmoothScoring={s.setSmoothScoring}
                       onMinCoverage={s.setMinCoverage}
+                      onTrendDays={s.setTrendDays}
                     />
                   </>
                 }

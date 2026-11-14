@@ -338,6 +338,7 @@ export function useStore() {
     setTrafficLights: (on: boolean) => update((s) => ({ ...s, settings: { ...(s.settings ?? {}), trafficLights: on } })),
     setSmoothScoring: (on: boolean) => update((s) => ({ ...s, settings: { ...(s.settings ?? {}), smoothScoring: on } })),
     setMinCoverage: (pct: number) => update((s) => ({ ...s, settings: { ...(s.settings ?? {}), minCoverage: pct } })),
+    setTrendDays: (days: number) => update((s) => ({ ...s, settings: { ...(s.settings ?? {}), trendDays: days } })),
 
     // --- table columns ---
     setColumns: (columns: string[] | undefined) =>

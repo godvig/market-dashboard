@@ -156,6 +156,7 @@ function parseSettings(input: unknown): UserSettings | undefined {
   if (typeof o.importMaxAgeDays === "number" && Number.isFinite(o.importMaxAgeDays)) {
     out.importMaxAgeDays = Math.min(3650, Math.max(1, Math.round(o.importMaxAgeDays)));
   }
+  if (typeof o.trendDays === "number" && [30, 91, 182, 365].includes(o.trendDays)) out.trendDays = o.trendDays;
   return Object.keys(out).length ? out : undefined;
 }
 

@@ -15,6 +15,8 @@ export const liveApi = {
   history: (symbol: string, range: HistoryRange) =>
     get<Candle[]>(`/api/history/${encodeURIComponent(symbol)}?range=${range}`),
   snapshots: (symbol: string) => get<Snapshot[]>(`/api/snapshots/${encodeURIComponent(symbol)}`),
+  snapshotsMany: (symbols: string[]) =>
+    get<Record<string, Snapshot[]>>(`/api/snapshots?symbols=${symbols.map(encodeURIComponent).join(",")}`),
   search: (q: string) => get<SearchResult[]>(`/api/search?q=${encodeURIComponent(q)}`),
   getStore: () => get<UserStore | null>("/api/store"),
   saveStore: (store: UserStore) =>

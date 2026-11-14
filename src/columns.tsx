@@ -6,6 +6,7 @@ import { isImportSource } from "../shared/importMerge";
 import { SCORECARDS, score, scoreBand, type ScoreOptions, type Scorecard } from "../shared/scoring";
 import type { FundamentalKey, StockMeta, WatchlistRow } from "../shared/types";
 import { HorseIcon, investmentRank } from "./components/HorseIcon";
+import { explainChange, snapshotBefore, type Snapshot } from "../shared/scoreHistory";
 import { fmtBig, fmtNum, fmtPct, sameCurrency, toBase, tone } from "./format";
 
 export interface Ctx {
@@ -16,6 +17,12 @@ export interface Ctx {
   scoring: ScoreOptions;
   /** Every scorecard available: presets, then the user's own. */
   scorecards: Scorecard[];
+  /** The open list's scorecard lens; the score-change column follows it. */
+  lensId?: string;
+  /** Key-figure snapshots per symbol, for the score-change column. Undefined while loading. */
+  snapshots?: Record<string, Snapshot[]>;
+  /** Period of the score-change column, in days. */
+  trendDays: number;
 }
 
 export interface ColumnDef {
@@ -29,6 +36,8 @@ export interface ColumnDef {
   value: (r: WatchlistRow, ctx: Ctx) => number | string | null;
   render?: (r: WatchlistRow, ctx: Ctx) => ReactNode;
   align?: "left";
+  /** Header text that depends on settings (e.g. "Δ 3M · Sundhet"); falls back to label. */
+  header?: (ctx: Ctx) => string;
   /** First click sorts ascending (e.g. Golden horse first). */
   ascFirst?: boolean;
 }
@@ -171,6 +180,57 @@ const infoCol = (id: "sector" | "niche" | "country", label: string, sv: string):
   render: (r, ctx) => <span className="info-text">{metaOf(r, ctx)?.[id] ?? "–"}</span>,
 });
 
+export const TREND_COL = "trend";
+export const TREND_CHOICES = [
+  [30, "1M"],
+  [91, "3M"],
+  [182, "6M"],
+  [365, "1Y"],
+] as const;
+const trendLabel = (days: number) => TREND_CHOICES.find(([d]) => d === days)?.[1] ?? `${days}d`;
+
+/** The scorecard the change column follows: the list's lens, else Sundhet. */
+const trendCard = (ctx: Ctx) => ctx.scorecards.find((c) => c.id === ctx.lensId) ?? ctx.scorecards[0];
+
+/** How the lens score moved over the chosen period, from the stored key figures. */
+function trendOf(r: WatchlistRow, ctx: Ctx) {
+  const snaps = ctx.snapshots?.[r.quote.symbol];
+  if (!snaps || snaps.length < 2) return null;
+  const i = snapshotBefore(snaps, ctx.trendDays);
+  if (i < 0 || i === snaps.length - 1) return null;
+  const card = trendCard(ctx);
+  const change = explainChange(card, snaps[i], snaps[snaps.length - 1], metaOf(r, ctx), ctx.scoring);
+  if (change.from.pct == null || change.to.pct == null) return null;
+  return { delta: change.to.pct - change.from.pct, change, card };
+}
+
+const trendCol: ColumnDef = {
+  id: TREND_COL,
+  label: "Score change",
+  header: (ctx) => `Δ ${trendLabel(ctx.trendDays)}`,
+  title:
+    "How the list's scorecard (or Sundhet) has moved over the period set in Columns, scored from the key figures saved each day the list loads. Hover a value for what moved it.",
+  tier: "extra",
+  section: "Scores",
+  defaultOn: true,
+  value: (r, ctx) => trendOf(r, ctx)?.delta ?? null,
+  render: (r, ctx) => {
+    const t = trendOf(r, ctx);
+    if (!t) return <span className="muted" title={ctx.snapshots ? "Not enough history yet" : "Loading history…"}>–</span>;
+    const top = t.change.changes
+      .filter((c) => Math.abs(c.effect) >= 0.5)
+      .slice(0, 3)
+      .map((c) => `${c.criterion.label}: ${formatMetric(c.criterion.metric, c.from)} → ${formatMetric(c.criterion.metric, c.to)}`);
+    const tip = `${t.card.name}, ${trendLabel(ctx.trendDays)}: ${t.change.from.pct} → ${t.change.to.pct}${top.length ? "\n" + top.join("\n") : ""}`;
+    return (
+      <span className={`trend-cell ${t.delta > 0 ? "pos" : t.delta < 0 ? "neg" : "muted"}`} title={tip}>
+        {t.delta > 0 ? "▲ +" : t.delta < 0 ? "▼ −" : "± "}
+        {Math.abs(t.delta)}
+      </span>
+    );
+  },
+};
+
 const DEFAULT_SCORES = new Set(["sundhet", "keyMetrics", "dividend"]);
 
 const BEFORE_SCORES: ColumnDef[] = [
@@ -262,6 +322,7 @@ const BEFORE_SCORES: ColumnDef[] = [
 ];
 
 const AFTER_SCORES: ColumnDef[] = [
+  trendCol,
 
   // Key Metrics (Allmän snurra) + dividend basics
   metricCol("profitMargin", "Key Metrics"),

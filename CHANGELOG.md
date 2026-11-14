@@ -2,6 +2,14 @@
 
 Notable changes, newest first.
 
+## 2026-11-14 – Score change column and a new look
+
+- **Score change column** (Δ 1M / 3M / 6M / 1Y): how the list's scorecard (or Sundhet) has moved, from the stored key figures; the tooltip names the figures that moved it. The period is set under *Columns*. New endpoint `GET /api/snapshots?symbols=…`.
+- A ranked list now leads with its lens score and the score change, right after the name.
+- **New look**: a racecard theme. Barlow for text, Barlow Condensed for headings, column heads and the score badges (self-hosted via Fontsource); paddock grey-green and racing green with brass marking what the list is ranked by. Light and dark themes with a toggle (follows the system by default; the choice is kept per browser). The price chart follows the theme.
+- Visible keyboard focus everywhere, reduced motion respected, no more all-caps labels.
+- README: new demo GIF and screenshots.
+
 ## 2026-11-14 – Why this score, and score history
 
 - **Why this score** on the stock page: the criteria that lift the stock above a typical stock in its list or pull it below, in score points with a bar, the list's median value next to the stock's, its place in the list and the gap to the list average. Pick any scorecard; the list's lens is shown first.

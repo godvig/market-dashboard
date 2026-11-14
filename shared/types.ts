@@ -89,6 +89,8 @@ export interface UserSettings {
   minCoverage?: number;
   /** Imported key figures older than this many days lose to the API. Default 120. */
   importMaxAgeDays?: number;
+  /** Period of the "score change" column, in days. Default 91 (3 months). */
+  trendDays?: number;
 }
 
 /** One key figure imported from a file (e.g. a Börsdata screener export). */

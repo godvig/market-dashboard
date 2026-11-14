@@ -139,10 +139,12 @@ function demoSnapshots(r: WatchlistRow): Snapshot[] {
   const rand = rng(r.quote.symbol);
   const walk = (o: Record<string, number>) => {
     const state = Object.fromEntries(Object.keys(o).map((k) => [k, 0]));
+    // Each figure gets its own slow trend plus weekly noise, so scores visibly drift.
+    const trend = Object.fromEntries(Object.keys(o).map((k) => [k, (rand() - 0.5) * 0.03]));
     return (step: number) =>
       Object.fromEntries(
         Object.entries(o).map(([k, v]) => {
-          state[k] += (rand() - 0.5) * 0.08 * (step > 0 ? 1 : 0);
+          if (step > 0) state[k] += trend[k] + (rand() - 0.5) * 0.1;
           return [k, Number((v * (1 + state[k]) + (Math.abs(v) < 1 ? state[k] : 0)).toPrecision(4))];
         }),
       );
@@ -163,6 +165,10 @@ export const demoApi = {
   },
   history: (symbol: string, range: HistoryRange): Promise<Candle[]> => mockProvider.getHistory!(symbol, range),
   snapshots: async (symbol: string): Promise<Snapshot[]> => demoSnapshots(await row(symbol, savedStore())),
+  snapshotsMany: async (symbols: string[]): Promise<Record<string, Snapshot[]>> => {
+    const store = savedStore();
+    return Object.fromEntries(await Promise.all(symbols.map(async (s) => [s, demoSnapshots(await row(s, store))] as const)));
+  },
   search: async (q: string): Promise<SearchResult[]> => {
     const hits = await mockProvider.search!(q);
     const typed = q.trim().toUpperCase();

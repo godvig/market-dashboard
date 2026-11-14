@@ -50,6 +50,12 @@ export async function recordSnapshots(rows: WatchlistRow[]): Promise<void> {
   if (changed && !writeTimer) writeTimer = setTimeout(() => void flush().catch(() => {}), 2000);
 }
 
+/** Snapshots for several stocks at once (for the score-change column). */
+export async function snapshotsForMany(symbols: string[]): Promise<Record<string, Snapshot[]>> {
+  const map = await load();
+  return Object.fromEntries(symbols.map((s) => [s, map.get(s.toUpperCase()) ?? []]));
+}
+
 export async function snapshotsFor(symbol: string): Promise<Snapshot[]> {
   return (await load()).get(symbol.toUpperCase()) ?? [];
 }

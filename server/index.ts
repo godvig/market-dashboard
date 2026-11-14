@@ -16,7 +16,7 @@ import { cached, isFresh, mapLimit, seed } from "./cache";
 import { createFx } from "./fx";
 import { createProviders } from "./providers";
 import type { MarketProvider } from "./providers/types";
-import { recordSnapshots, snapshotsFor } from "./snapshots";
+import { recordSnapshots, snapshotsFor, snapshotsForMany } from "./snapshots";
 import { parseStore, readStore, writeStore } from "./store";
 
 const { primary, fallback } = createProviders(process.env);
@@ -165,6 +165,16 @@ app.get("/api/watchlist", async (req, res) => {
   res.json(rows);
   // After answering: history must never slow down or break the list.
   void recordSnapshots(rows).catch(() => {});
+});
+
+/** Snapshots for a whole list: ?symbols=A,B,C */
+app.get("/api/snapshots", async (req, res) => {
+  const symbols = String(req.query.symbols ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, 500);
+  res.json(await snapshotsForMany(symbols));
 });
 
 /** Key-figure snapshots behind the score history of one stock. */

@@ -1,28 +1,50 @@
 import { CandlestickSeries, createChart, LineSeries, type IChartApi } from "lightweight-charts";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { smaSeries } from "../../shared/analysis";
 import type { Candle } from "../../shared/types";
 
+/** Changes whenever the light/dark theme does (system setting or the toggle), so the chart can redraw. */
+function useThemeKey() {
+  const [key, setKey] = useState(0);
+  useEffect(() => {
+    const bump = () => setKey((k) => k + 1);
+    const media = window.matchMedia?.("(prefers-color-scheme: dark)");
+    media?.addEventListener("change", bump);
+    const observer = new MutationObserver(bump);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => {
+      media?.removeEventListener("change", bump);
+      observer.disconnect();
+    };
+  }, []);
+  return key;
+}
+
 export function PriceChart({ candles }: { candles: Candle[] }) {
   const ref = useRef<HTMLDivElement>(null);
+  const themeKey = useThemeKey();
 
   useEffect(() => {
     if (!ref.current) return;
-    const dark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
+    // Colours come from the CSS theme tokens.
+    const css = getComputedStyle(document.documentElement);
+    const v = (name: string) => css.getPropertyValue(name).trim();
+    const up = v("--pos");
+    const down = v("--neg");
     const chart: IChartApi = createChart(ref.current, {
       autoSize: true,
-      layout: { background: { color: "transparent" }, textColor: dark ? "#c9cdd4" : "#333" },
-      grid: { vertLines: { visible: false }, horzLines: { color: dark ? "#2a2e36" : "#eee" } },
+      layout: { background: { color: "transparent" }, textColor: v("--muted"), fontFamily: v("--font") },
+      grid: { vertLines: { visible: false }, horzLines: { color: v("--border") } },
       rightPriceScale: { borderVisible: false },
       timeScale: { borderVisible: false },
     });
 
     chart
       .addSeries(CandlestickSeries, {
-        upColor: "#1a9c5b",
-        downColor: "#d64545",
-        wickUpColor: "#1a9c5b",
-        wickDownColor: "#d64545",
+        upColor: up,
+        downColor: down,
+        wickUpColor: up,
+        wickDownColor: down,
         borderVisible: false,
       })
       .setData(candles);
@@ -34,12 +56,12 @@ export function PriceChart({ candles }: { candles: Candle[] }) {
         .addSeries(LineSeries, { color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, title: `SMA${period}` })
         .setData(candles.flatMap((c, i) => (s[i] == null ? [] : [{ time: c.time, value: s[i]! }])));
     };
-    overlay(50, "#3b82f6");
-    overlay(200, "#f59e0b");
+    overlay(50, v("--accent"));
+    overlay(200, v("--brass"));
 
     chart.timeScale().fitContent();
     return () => chart.remove();
-  }, [candles]);
+  }, [candles, themeKey]);
 
   return <div ref={ref} className="chart" />;
 }
