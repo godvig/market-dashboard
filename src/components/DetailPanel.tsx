@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { scoreBand, SCORECARDS, score } from "../../shared/scoring";
+import { scoreBand, score } from "../../shared/scoring";
 import type { Candle, HistoryRange, StockMeta, WatchlistRow } from "../../shared/types";
 import { api } from "../api";
 import { COLUMNS, metaOf, sourceOf, type Ctx } from "../columns";
@@ -8,6 +8,7 @@ import { HorseIcon } from "./HorseIcon";
 import { PriceChart } from "./PriceChart";
 import { ScorePanel } from "./ScorePanel";
 import { StockInfo } from "./StockInfo";
+import { WhyPanel } from "./WhyPanel";
 
 const RANGES: HistoryRange[] = ["6mo", "1y", "2y", "5y"];
 type Tab = "overview" | "scores" | "info";
@@ -16,6 +17,10 @@ interface Props {
   row: WatchlistRow;
   ctx: Ctx;
   listName: string;
+  /** The other stocks in the list, for the "why" comparison. */
+  peers: WatchlistRow[];
+  /** The list's scorecard lens, explained first. */
+  lensId?: string;
   prev?: string;
   next?: string;
   onBack: () => void;
@@ -25,7 +30,7 @@ interface Props {
 }
 
 /** Full-page view of one stock. Breadcrumb "List › Stock"; the list name leads back. */
-export function DetailPanel({ row, ctx, listName, prev, next, onBack, onNavigate, onMeta, onAssess }: Props) {
+export function DetailPanel({ row, ctx, listName, peers, lensId, prev, next, onBack, onNavigate, onMeta, onAssess }: Props) {
   const { quote: q, metrics: m, fx, fundamentals: f } = row;
   const { baseCurrency } = ctx;
   const meta = metaOf(row, ctx);
@@ -89,6 +94,13 @@ export function DetailPanel({ row, ctx, listName, prev, next, onBack, onNavigate
     .filter((c) => c.value(row, ctx) != null);
   const sections = [...new Set(metricCols.map((c) => c.section))];
 
+  // The list's lens first, then the usual presets.
+  const lens = ctx.scorecards.find((c) => c.id === lensId);
+  const miniCards = [
+    ...(lens ? [lens] : []),
+    ...ctx.scorecards.filter((c) => c.id !== lens?.id && ["sundhet", "keyMetrics", "dividend", "quality"].includes(c.id)),
+  ].slice(0, 4);
+
   return (
     <div className="stock-view">
       <nav className="breadcrumb">
@@ -131,7 +143,7 @@ export function DetailPanel({ row, ctx, listName, prev, next, onBack, onNavigate
             {q.source && <div className="muted small">Source: {q.source}</div>}
           </div>
           <div className="mini-scores">
-            {SCORECARDS.filter((c) => ["sundhet", "keyMetrics", "dividend", "quality"].includes(c.id)).map((c) => {
+            {miniCards.map((c) => {
               const s = score(c, sourceOf(row, ctx), ctx.scoring);
               return (
                 <button key={c.id} className="mini-score" onClick={() => setTab("scores")} title={`${c.name}: ${s.covered}/${s.total} metrics`}>
@@ -159,6 +171,15 @@ export function DetailPanel({ row, ctx, listName, prev, next, onBack, onNavigate
 
         {tab === "overview" && (
           <>
+            <WhyPanel
+              key={lens?.id ?? "sundhet"}
+              row={row}
+              peers={peers}
+              ctx={ctx}
+              listName={listName}
+              initialCard={lens ?? ctx.scorecards[0]}
+              onShowAll={() => setTab("scores")}
+            />
             <div className="ranges">
               {RANGES.map((r) => (
                 <button key={r} className={r === range ? "active" : ""} onClick={() => setRange(r)}>

@@ -15,6 +15,7 @@ import {
   type UserStore,
   type WatchlistRow,
 } from "../shared/types";
+import { snapshotOf, today, type Snapshot } from "../shared/scoreHistory";
 import { mockProvider } from "../server/providers/mock";
 
 const RISK_FREE = 2;
@@ -45,11 +46,27 @@ const DEMO_STORE: UserStore = {
     { id: "demo-us", name: "United States" },
   ],
   lists: [
-    { id: "demo-large", name: "Large caps", groupId: "demo-se", symbols: ["VOLV-B.ST", "ERIC-B.ST", "INVE-B.ST", "ATCO-A.ST", "SAND.ST", "HM-B.ST"] },
-    { id: "demo-div", name: "Dividend ideas", groupId: "demo-se", symbols: ["SHB-A.ST", "SEB-A.ST", "TELIA.ST", "AZN.ST"] },
-    { id: "demo-tech", name: "Big tech", groupId: "demo-us", symbols: ["AAPL", "MSFT", "NVDA", "GOOGL", "AMZN", "META"] },
+    { id: "demo-large", name: "Large caps", groupId: "demo-se", symbols: ["VOLV-B.ST", "ERIC-B.ST", "INVE-B.ST", "ATCO-A.ST", "SAND.ST", "HM-B.ST"], scorecardId: "sundhet" },
+    { id: "demo-div", name: "Dividend ideas", groupId: "demo-se", symbols: ["SHB-A.ST", "SEB-A.ST", "TELIA.ST", "AZN.ST"], scorecardId: "dividend" },
+    { id: "demo-tech", name: "Big tech", groupId: "demo-us", symbols: ["AAPL", "MSFT", "NVDA", "GOOGL", "AMZN", "META"], scorecardId: "growth" },
     { id: "demo-etf", name: "ETFs", groupId: "demo-us", symbols: ["SPY", "QQQ", "VT"] },
-    { id: "demo-eu", name: "Europe", symbols: ["ASML.AS", "NOVO-B.CO", "SAP.DE", "NESN.SW"] },
+    { id: "demo-eu", name: "Europe", symbols: ["ASML.AS", "NOVO-B.CO", "SAP.DE", "NESN.SW"], scorecardId: "custom-compounders" },
+  ],
+  // An example of a scorecard built in the editor, so "Yours" isn't empty on a first visit.
+  scorecards: [
+    {
+      id: "custom-compounders",
+      name: "Compounders",
+      description: "Companies that earn a lot on their capital, turn profit into cash and don't need debt to do it.",
+      origin: "Demo scorecard",
+      criteria: [
+        { id: "roic", label: "ROIC", metric: "roic", weight: 2, tiers: [{ gte: 20, points: 3 }, { gte: 12, points: 2 }, { gte: 8, points: 1 }, { points: 0 }] },
+        { id: "fcf", label: "FCF margin", metric: "fcfMargin", tiers: [{ gte: 15, points: 3 }, { gte: 8, points: 2 }, { gte: 3, points: 1 }, { points: 0 }] },
+        { id: "nde", label: "Net debt/EBITDA", metric: "netDebtEbitda", tiers: [{ lt: 1, points: 3 }, { lt: 2, points: 2 }, { lt: 3, points: 1 }, { points: 0 }] },
+        { id: "growth", label: "Revenue growth", metric: "revenueGrowth", tiers: [{ gte: 10, points: 3 }, { gte: 5, points: 2 }, { gte: 0, points: 1 }, { points: 0, cliff: true }] },
+        { id: "pe", label: "P/E", metric: "pe", tiers: [{ gt: 0, lt: 20, points: 2 }, { gt: 0, lt: 35, points: 1 }, { points: 0 }] },
+      ],
+    },
   ],
 };
 
@@ -101,6 +118,43 @@ async function row(symbol: string, store: UserStore | null): Promise<WatchlistRo
   }
 }
 
+/** Deterministic pseudo-random numbers per symbol, so the made-up history looks the same on every visit. */
+function rng(seed: string) {
+  let h = 2166136261;
+  for (const ch of seed) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  return () => {
+    h = Math.imul(h ^ (h >>> 15), 2246822507);
+    h = Math.imul(h ^ (h >>> 13), 3266489909);
+    return ((h ^= h >>> 16) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * A made-up year of weekly snapshots ending in today's figures: every value
+ * drifts on its own random walk backwards in time, so scores move a little.
+ */
+function demoSnapshots(r: WatchlistRow): Snapshot[] {
+  const now = snapshotOf(r);
+  if (!now) return [];
+  const rand = rng(r.quote.symbol);
+  const walk = (o: Record<string, number>) => {
+    const state = Object.fromEntries(Object.keys(o).map((k) => [k, 0]));
+    return (step: number) =>
+      Object.fromEntries(
+        Object.entries(o).map(([k, v]) => {
+          state[k] += (rand() - 0.5) * 0.08 * (step > 0 ? 1 : 0);
+          return [k, Number((v * (1 + state[k]) + (Math.abs(v) < 1 ? state[k] : 0)).toPrecision(4))];
+        }),
+      );
+  };
+  const wf = walk(now.f as Record<string, number>);
+  const wm = walk(now.m as Record<string, number>);
+  const out: Snapshot[] = [];
+  const day = Date.parse(now.d + "T00:00:00Z");
+  for (let i = 0; i <= 52; i++) out.push({ d: today(new Date(day - i * 7 * 86_400_000)), f: wf(i), m: wm(i) });
+  return out.reverse();
+}
+
 export const demoApi = {
   health: async (): Promise<Health> => ({ provider: "demo", fallback: "demo", baseCurrency: "SEK" }),
   watchlist: (symbols: string[]): Promise<WatchlistRow[]> => {
@@ -108,6 +162,7 @@ export const demoApi = {
     return Promise.all(symbols.map((s) => row(s, store)));
   },
   history: (symbol: string, range: HistoryRange): Promise<Candle[]> => mockProvider.getHistory!(symbol, range),
+  snapshots: async (symbol: string): Promise<Snapshot[]> => demoSnapshots(await row(symbol, savedStore())),
   search: async (q: string): Promise<SearchResult[]> => {
     const hits = await mockProvider.search!(q);
     const typed = q.trim().toUpperCase();

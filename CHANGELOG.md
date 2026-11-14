@@ -2,6 +2,13 @@
 
 Notable changes, newest first.
 
+## 2026-11-14 – Why this score, and score history
+
+- **Why this score** on the stock page: the criteria that lift the stock above a typical stock in its list or pull it below, in score points with a bar, the list's median value next to the stock's, its place in the list and the gap to the list average. Pick any scorecard; the list's lens is shown first.
+- **Score history**: the server saves the key figures behind the scores whenever a list loads (`data/snapshots.json`; daily for five weeks, then weekly, at most 300 per stock). The stock page draws the score over 1M / 3M / 1Y / all and lists the figures that moved it most. Because figures, not scores, are stored, an edited or brand-new scorecard gets a history straight away.
+- The mini scores in the stock header start with the list's lens.
+- **Demo**: every list now has a scorecard lens (Large caps → Sundhet, Dividend ideas → Utdelning, Big tech → Tillväxt, Europe → an example custom card, *Compounders*), and each stock gets a made-up year of history.
+
 ## 2026-11-13 – Scorecard editor
 
 - **Build your own scorecards** on the new *Scorecards* page: duplicate a preset or start from a small template, then edit criteria, metrics, tier ranges, points, hard edges and weights. Built-in cards stay locked so they keep matching the spreadsheets.

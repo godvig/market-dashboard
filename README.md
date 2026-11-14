@@ -15,6 +15,8 @@ A stock watchlist and analysis dashboard that pulls data from free market-data A
 - **Sidebar with categories.** Group watchlists into categories, drag lists between categories and drag categories to reorder them. Double-click to rename. Everything is saved on the server in `data/store.json`, with a backup copy in the browser. Export/import lists as JSON
 - **Scorecards.** Nine scoring models (Sundhet with two weight profiles, Kvalitet & värdering, Key Metrics, Utdelning, Utdelningspoäng, Tillväxt, Tillväxt graderad, Egen bedömning) shown as sortable 0–100 columns with coverage (e.g. `16/18` metrics had data). Points are blended smoothly between tiers, and a score is only shown when enough of the scorecard has data. The stock page breaks every score down per criterion: value, tier and points
 - **Build your own scorecards.** Duplicate a preset or start fresh, then change criteria, thresholds, points and weights in the browser. A live ranking of the open list shows which stocks move up or down as you edit. Export a scorecard as a JSON file to share it, import someone else's. See [Your own scorecards](#your-own-scorecards)
+- **Why this score.** The stock page explains the score against the rest of the list: which criteria lift it above a typical stock in the list and which pull it down, in score points, with the list's median next to each value. "#2 of 6, +9 vs the list average" at a glance
+- **Score history.** The figures behind the scores are saved every time a list loads (daily for five weeks, then weekly), so any scorecard, even one you built today, can be scored back in time. The stock page shows the trend for 1M / 3M / 1Y and which figures moved it ("ROIC 22 % → 19 %, −3.9")
 - **Rank a list by a scorecard.** Each list can have its own "lens", e.g. *Utdelning* for a dividend list and *Tillväxt* for a growth list. The table sorts by it and keeps its column in view
 - **Traffic lights.** Green / yellow / red dots on each key figure, using the spreadsheet's icon-set thresholds (toggle in the column picker)
 - **Bring your own data.** Import key figures from a CSV or Excel file, such as an export from Börsdata's screener, to fill the scorecards with 5- and 10-year growth and the rest without an API key. Columns are recognised by name (Swedish and English), you check the converted values in a preview, rows are matched to your stocks by ticker or name, and the mapping is remembered so the next export imports in one click. Imported figures stay on your machine. See [Importing key figures](#importing-key-figures-csv--excel)
@@ -87,6 +89,13 @@ Open **Scorecards** in the sidebar (or **Edit…** next to *Rank by* above the t
 ```
 
 Imported files are validated (`shared/scorecardIO.ts`): unknown metrics are rejected, weights and points are clamped, and an imported card never replaces a built-in one or a card you already have.
+
+### Why a stock scores what it does, and how that changed
+
+The **Overview** tab of a stock starts with the list's scorecard (or *Sundhet*):
+
+- **Against the list.** Each criterion's effect is *(the stock's points − the average points of the other stocks in the list) ÷ the stock's available points × 100*, so the effects add up to roughly the gap between the stock's score and the list average. Logic in [`shared/explain.ts`](shared/explain.ts).
+- **Over time.** The server stores the key figures, not the scores, in `data/snapshots.json`, so editing a scorecard re-scores the whole history. One snapshot per stock per day for the last five weeks, then the last one of each week, at most 300 (about five years). Your own assessments aren't dated, so today's are used for every point. Logic in [`shared/scoreHistory.ts`](shared/scoreHistory.ts). The demo makes up a year of history from a random walk.
 
 ### Two things the app does differently from the spreadsheet
 
@@ -274,7 +283,7 @@ CI runs lint, typecheck, tests and both builds on every push and pull request.
 
 ---
 
-Your lists, notes, assessments and imported key figures are saved only in `data/store.json` (git-ignored) and never leave your machine.
+Your lists, notes, assessments and imported key figures are saved only in `data/store.json`, and the score history in `data/snapshots.json` (both git-ignored). Nothing leaves your machine.
 
 Data from free sources may be delayed or inaccurate. This is not investment advice.
 

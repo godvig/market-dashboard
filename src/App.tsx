@@ -200,6 +200,8 @@ export function App() {
               row={stockRow}
               ctx={ctx}
               listName={list.name}
+              peers={ordered.filter((r) => r !== stockRow)}
+              lensId={list.scorecardId}
               onMeta={(patch) => s.setMeta(stockRow.quote.symbol, patch)}
               onAssess={(k, v) => s.setAssessment(stockRow.quote.symbol, k, v)}
               prev={ordered[stockIndex - 1]?.quote.symbol}

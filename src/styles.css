@@ -567,3 +567,39 @@ button.danger { border-color: #dc2626; color: #dc2626; }
   .lens-picker select { max-width: 140px; }
 }
 .sc-main > p.muted { font-size: 14px; margin: 0 0 6px; }
+
+/* ---- why this score ---- */
+.why { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin: 4px 0 14px; }
+.why-head { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }
+.why-head .badge-score { font-size: 18px; min-width: 44px; padding: 6px 8px; }
+.why-title select { font-weight: 600; font-size: 14px; padding: 3px 6px; }
+.why-list { list-style: none; margin: 0; padding: 0; }
+.why-row { display: grid; grid-template-columns: minmax(110px, 1.3fr) minmax(110px, 1.2fr) minmax(80px, 1.5fr) 44px; gap: 10px; align-items: center; padding: 5px 0; border-top: 1px solid var(--border); font-size: 13px; }
+.why-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.why-value { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.why-bar { position: relative; height: 10px; }
+.why-axis { position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--border); }
+.why-fill { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
+.why-fill.up { background: #16a34a; }
+.why-fill.down { background: #dc2626; }
+.why-effect { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.why-foot { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+.why-foot .link:last-child { margin-left: auto; }
+@media (max-width: 760px) {
+  .why { padding: 10px; }
+  .why-row { grid-template-columns: minmax(0, 1fr) 60px 40px; row-gap: 0; }
+  .why-value { grid-column: 1; grid-row: 2; font-size: 12px; }
+  .why-bar { grid-column: 2; grid-row: 1 / span 2; }
+  .why-effect { grid-column: 3; grid-row: 1 / span 2; }
+}
+.trend { border-top: 1px solid var(--border); margin-top: 10px; padding-top: 10px; }
+.trend-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+.trend-periods { display: inline-flex; gap: 4px; }
+.trend-periods button { font-size: 11px; padding: 2px 8px; }
+.sparkline { display: block; width: 100%; height: 56px; }
+.spark-line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; }
+.spark-mid { stroke: var(--border); stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+.trend-changes { list-style: none; padding: 0; margin: 6px 0 0; display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.trend-empty, .trend-note { margin: 8px 0 0; }
+.spark-wrap { display: flex; gap: 6px; align-items: stretch; }
+.spark-scale { display: flex; flex-direction: column; justify-content: space-between; font-size: 10px; font-variant-numeric: tabular-nums; min-width: 18px; text-align: right; }

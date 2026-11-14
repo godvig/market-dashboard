@@ -1,3 +1,4 @@
+import type { Snapshot } from "../shared/scoreHistory";
 import type { Candle, Health, HistoryRange, SearchResult, UserStore, WatchlistRow } from "../shared/types";
 
 async function get<T>(url: string, init?: RequestInit): Promise<T> {
@@ -13,6 +14,7 @@ export const liveApi = {
     get<WatchlistRow[]>(`/api/watchlist?symbols=${encodeURIComponent(symbols.join(","))}`),
   history: (symbol: string, range: HistoryRange) =>
     get<Candle[]>(`/api/history/${encodeURIComponent(symbol)}?range=${range}`),
+  snapshots: (symbol: string) => get<Snapshot[]>(`/api/snapshots/${encodeURIComponent(symbol)}`),
   search: (q: string) => get<SearchResult[]>(`/api/search?q=${encodeURIComponent(q)}`),
   getStore: () => get<UserStore | null>("/api/store"),
   saveStore: (store: UserStore) =>
